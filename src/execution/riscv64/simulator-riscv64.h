@@ -744,11 +744,10 @@ class Simulator : public SimulatorBase {
   type_sew_t<x>::type simm5 = (type_sew_t<x>::type)(instr_.RvvSimm5()); \
   type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);
 
-
-#define VI_UPARAMS(x)                                                    \
-  type_usew_t<x>::type& vd =                                             \
-      Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);               \
-  type_usew_t<x>::type simm5 = (type_usew_t<x>::type)(instr_.RvvUimm5()); \
+#define VI_UPARAMS(x)                                                     \
+  type_usew_t<x>::type& vd =                                              \
+      Rvvelt<type_usew_t<x>::type>(rvv_vd_reg(), i, true);                \
+  type_usew_t<x>::type uimm5 = (type_usew_t<x>::type)(instr_.RvvUimm5()); \
   type_usew_t<x>::type vs2 = Rvvelt<type_usew_t<x>::type>(rvv_vs2_reg(), i);
 
 #define VXI_PARAMS(x)                                                       \
@@ -937,6 +936,30 @@ class Simulator : public SimulatorBase {
     BODY                           \
   } else if (rvv_vsew() == E128) { \
     VI_PARAMS(128);                \
+    BODY                           \
+  } else {                         \
+    UNREACHABLE();                 \
+  }                                \
+  RVV_VI_LOOP_END                  \
+  rvv_trace_vd();
+
+#define RVV_VI_VI_ULOOP(BODY)      \
+  RVV_VI_GENERAL_LOOP_BASE         \
+  RVV_VI_LOOP_MASK_SKIP()          \
+  if (rvv_vsew() == E8) {          \
+    VI_UPARAMS(8);                 \
+    BODY                           \
+  } else if (rvv_vsew() == E16) {  \
+    VI_UPARAMS(16);                \
+    BODY                           \
+  } else if (rvv_vsew() == E32) {  \
+    VI_UPARAMS(32);                \
+    BODY                           \
+  } else if (rvv_vsew() == E64) {  \
+    VI_UPARAMS(64);                \
+    BODY                           \
+  } else if (rvv_vsew() == E128) { \
+    VI_UPARAMS(128);               \
     BODY                           \
   } else {                         \
     UNREACHABLE();                 \

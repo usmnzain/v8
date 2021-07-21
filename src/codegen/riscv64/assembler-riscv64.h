@@ -823,6 +823,37 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DEFINE_OPIVX(vslideup, VSLIDEUP_FUNCT6)
   DEFINE_OPIVI(vslideup, VSLIDEUP_FUNCT6)
 
+  DEFINE_OPIVV(vmseq, VMSEQ_FUNCT6)
+  DEFINE_OPIVX(vmseq, VMSEQ_FUNCT6)
+  DEFINE_OPIVI(vmseq, VMSEQ_FUNCT6)
+
+  DEFINE_OPIVV(vmsne, VMSNE_FUNCT6)
+  DEFINE_OPIVX(vmsne, VMSNE_FUNCT6)
+  DEFINE_OPIVI(vmsne, VMSNE_FUNCT6)
+
+  DEFINE_OPIVV(vmsltu, VMSLTU_FUNCT6)
+  DEFINE_OPIVX(vmsltu, VMSLTU_FUNCT6)
+
+  DEFINE_OPIVV(vmslt, VMSLT_FUNCT6)
+  DEFINE_OPIVX(vmslt, VMSLT_FUNCT6)
+
+  DEFINE_OPIVV(vmsle, VMSLE_FUNCT6)
+  DEFINE_OPIVX(vmsle, VMSLE_FUNCT6)
+  DEFINE_OPIVI(vmsle, VMSLE_FUNCT6)
+
+  DEFINE_OPIVV(vmsleu, VMSLEU_FUNCT6)
+  DEFINE_OPIVX(vmsleu, VMSLEU_FUNCT6)
+  DEFINE_OPIVI(vmsleu, VMSLEU_FUNCT6)
+
+  DEFINE_OPIVI(vmsgt, VMSGT_FUNCT6)
+  DEFINE_OPIVX(vmsgt, VMSGT_FUNCT6)
+
+  DEFINE_OPIVI(vmsgtu, VMSGTU_FUNCT6)
+  DEFINE_OPIVX(vmsgtu, VMSGTU_FUNCT6)
+
+  void vnot_vv(VRegister dst, VRegister src) { vxor_vi(dst, src, -1); }
+
+  void vneg_vv(VRegister dst, VRegister src) { vrsub_vx(dst, src, zero_reg); }
   // Privileged
   void uret();
   void sret();

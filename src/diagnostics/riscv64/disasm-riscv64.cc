@@ -1942,6 +1942,24 @@ void Decoder::DecodeRvvIVV(Instruction* instr) {
     case RO_V_VRGATHER_VV:
       Format(instr, "vrgather.vv       'vd, 'vs2, 'vs1'vm");
       break;
+    case RO_V_VMSEQ_VV:
+      Format(instr, "vmseq.vv       'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMSNE_VV:
+      Format(instr, "vmsne.vv       'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMSLT_VV:
+      Format(instr, "vmslt.vv       'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMSLTU_VV:
+      Format(instr, "vmsltu.vv       'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMSLE_VV:
+      Format(instr, "vmsle.vv       'vd, 'vs2, 'vs1'vm");
+      break;
+    case RO_V_VMSLEU_VV:
+      Format(instr, "vmsleu.vv       'vd, 'vs2, 'vs1'vm");
+      break;
     case RO_V_VMV_VV:
       if (instr->RvvVM()) {
         Format(instr, "vmv.vv       'vd, 'vs1");
@@ -1985,6 +2003,24 @@ void Decoder::DecodeRvvIVI(Instruction* instr) {
       } else {
         Format(instr, "vmerge.vim       'vd, 'vs2, 'simm5, v0");
       }
+      break;
+    case RO_V_VMSEQ_VI:
+      Format(instr, "vmseq.vi       'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VMSNE_VI:
+      Format(instr, "vmsne.vi       'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VMSLEU_VI:
+      Format(instr, "vmsleu.vi       'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VMSLE_VI:
+      Format(instr, "vmsle.vi       'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VMSGTU_VI:
+      Format(instr, "vmsleu.vi       'vd, 'vs2, 'simm5'vm");
+      break;
+    case RO_V_VMSGT_VI:
+      Format(instr, "vmsle.vi       'vd, 'vs2, 'simm5'vm");
       break;
     case RO_V_VSLIDEDOWN_VI:
       Format(instr, "vslidedown.vi 'vd, 'vs2, 'uimm5'vm");
@@ -2043,6 +2079,30 @@ void Decoder::DecodeRvvIVX(Instruction* instr) {
       } else {
         Format(instr, "vmerge.vxm       'vd, 'vs2, 'rs1, v0");
       }
+      break;
+    case RO_V_VMSEQ_VX:
+      Format(instr, "vmseq.vx       'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMSNE_VX:
+      Format(instr, "vmsne.vx       'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMSLT_VX:
+      Format(instr, "vmslt.vx       'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMSLTU_VX:
+      Format(instr, "vmsltu.vx       'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMSLE_VX:
+      Format(instr, "vmsle.vx       'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMSLEU_VX:
+      Format(instr, "vmsleu.vx       'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMSGT_VX:
+      Format(instr, "vmsgt.vx       'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VMSGTU_VX:
+      Format(instr, "vmsgtu.vx       'vd, 'vs2, 'rs1'vm");
       break;
     case RO_V_VSLIDEDOWN_VX:
       Format(instr, "vslidedown.vx 'vd, 'vs2, 'rs1'vm");
