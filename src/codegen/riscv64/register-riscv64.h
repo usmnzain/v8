@@ -287,7 +287,7 @@ class FPURegister : public RegisterBase<FPURegister, kDoubleAfterLast> {
 
   // FIXME(riscv64): In Rvv, Vector regs is different from Float Regs. But in
   // this cl, in order to facilitate modification, it is assumed that the vector
-  // register and floating point register are public.
+  // register and floating point register are shared.
   VRegister toV() const { return VRegister::from_code(code()); }
 
  private:
