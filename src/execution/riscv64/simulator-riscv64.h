@@ -758,12 +758,6 @@ class Simulator : public SimulatorBase {
   type_sew_t<x>::type rs1 = (type_sew_t<x>::type)(get_register(rs1_reg())); \
   type_sew_t<x>::type simm5 = (type_sew_t<x>::type)(instr_.RvvSimm5());
 
-#define RVV_VI_GENERAL_LOOP_BASE \
-  for (uint64_t i = rvv_vstart(); i < rvv_vl(); i++) {
-#define RVV_VI_LOOP_END \
-  set_rvv_vstart(0);    \
-  }
-
   inline void rvv_trace_vd() {
     if (::v8::internal::FLAG_trace_sim) {
       __int128_t value = Vregister_[rvv_vd_reg()];
@@ -818,9 +812,20 @@ class Simulator : public SimulatorBase {
     }
   }
 
-#define RVV_VI_LOOP_MASK_SKIP(BODY) \
-  if (instr_.RvvVM() == 0) {        \
-    UNIMPLEMENTED();                \
+#define RVV_VI_GENERAL_LOOP_BASE \
+  for (uint64_t i = rvv_vstart(); i < rvv_vl(); i++) {
+#define RVV_VI_LOOP_END \
+  set_rvv_vstart(0);    \
+  }
+
+#define RVV_VI_LOOP_MASK_SKIP(BODY)                               \
+  const uint8_t midx = i / 64;                                    \
+  const uint8_t mpos = i % 64;                                    \
+  if (instr_.RvvVM() == 0) {                                      \
+    bool skip = ((Rvvelt<uint64_t>(0, midx) >> mpos) & 0x1) == 0; \
+    if (skip) {                                                   \
+      continue;                                                   \
+    }                                                             \
   }
 
 #define RVV_VI_VV_LOOP(BODY)       \
@@ -969,6 +974,7 @@ class Simulator : public SimulatorBase {
 
 #define RVV_VI_VVXI_MERGE_LOOP(BODY) \
   RVV_VI_GENERAL_LOOP_BASE           \
+  RVV_VI_LOOP_MASK_SKIP()            \
   if (rvv_vsew() == E8) {            \
     VXI_PARAMS(8);                   \
     BODY;                            \

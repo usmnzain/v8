@@ -2396,6 +2396,138 @@ void Assembler::c_andi(Register rs1, uint8_t uimm6) {
 }
 
 // RVV
+void Assembler::vmv_vv(VRegister vd, VRegister vs1) {
+  GenInstrV(VMV_FUNCT6, OP_IVV, vd, vs1, v0, NoMask);
+}
+
+void Assembler::vmv_vx(VRegister vd, Register rs1) {
+  GenInstrV(VMV_FUNCT6, OP_IVX, vd, rs1, v0, NoMask);
+}
+
+void Assembler::vmv_vi(VRegister vd, uint8_t simm5) {
+  GenInstrV(VMV_FUNCT6, vd, simm5, v0, NoMask);
+}
+
+void Assembler::vmv_xs(Register rd, VRegister vs2) {
+  GenInstrV(VWXUNARY0_FUNCT6, OP_MVV, rd, v0, vs2, NoMask);
+}
+
+void Assembler::vmv_sx(VRegister vd, Register rs1) {
+  GenInstrV(VRXUNARY0_FUNCT6, OP_MVX, vd, rs1, v0, NoMask);
+}
+
+void Assembler::vmerge_vv(VRegister vd, VRegister vs1, VRegister vs2) {
+  GenInstrV(VMV_FUNCT6, OP_IVV, vd, vs1, vs2, Mask);
+}
+
+void Assembler::vmerge_vx(VRegister vd, Register rs1, VRegister vs2) {
+  GenInstrV(VMV_FUNCT6, OP_IVX, vd, rs1, vs2, Mask);
+}
+
+void Assembler::vmerge_vi(VRegister vd, uint8_t imm5, VRegister vs2) {
+  GenInstrV(VMV_FUNCT6, vd, imm5, vs2, Mask);
+}
+
+#define DEFINE_OPIVV(name, funct6)                                      \
+  void Assembler::name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
+                            MaskType mask) {                            \
+    GenInstrV(funct6, OP_IVV, vd, vs1, vs2, mask);                      \
+  }
+
+#define DEFINE_OPIVX(name, funct6)                                     \
+  void Assembler::name##_vx(VRegister vd, VRegister vs2, Register rs1, \
+                            MaskType mask) {                           \
+    GenInstrV(funct6, OP_IVX, vd, rs1, vs2, mask);                     \
+  }
+
+#define DEFINE_OPIVI(name, funct6)                                     \
+  void Assembler::name##_vi(VRegister vd, VRegister vs2, uint8_t imm5, \
+                            MaskType mask) {                           \
+    GenInstrV(funct6, vd, imm5, vs2, mask);                            \
+  }
+
+DEFINE_OPIVV(vadd, VADD_FUNCT6)
+DEFINE_OPIVX(vadd, VADD_FUNCT6)
+DEFINE_OPIVI(vadd, VADD_FUNCT6)
+DEFINE_OPIVV(vsub, VSUB_FUNCT6)
+DEFINE_OPIVX(vsub, VSUB_FUNCT6)
+DEFINE_OPIVX(vsadd, VSADD_FUNCT6)
+DEFINE_OPIVV(vsadd, VSADD_FUNCT6)
+DEFINE_OPIVI(vsadd, VSADD_FUNCT6)
+DEFINE_OPIVX(vsaddu, VSADD_FUNCT6)
+DEFINE_OPIVV(vsaddu, VSADD_FUNCT6)
+DEFINE_OPIVI(vsaddu, VSADD_FUNCT6)
+DEFINE_OPIVX(vssub, VSSUB_FUNCT6)
+DEFINE_OPIVV(vssub, VSSUB_FUNCT6)
+DEFINE_OPIVX(vssubu, VSSUBU_FUNCT6)
+DEFINE_OPIVV(vssubu, VSSUBU_FUNCT6)
+DEFINE_OPIVX(vrsub, VRSUB_FUNCT6)
+DEFINE_OPIVI(vrsub, VRSUB_FUNCT6)
+DEFINE_OPIVV(vminu, VMINU_FUNCT6)
+DEFINE_OPIVX(vminu, VMINU_FUNCT6)
+DEFINE_OPIVV(vmin, VMIN_FUNCT6)
+DEFINE_OPIVX(vmin, VMIN_FUNCT6)
+DEFINE_OPIVV(vmaxu, VMAXU_FUNCT6)
+DEFINE_OPIVX(vmaxu, VMAXU_FUNCT6)
+DEFINE_OPIVV(vmax, VMAX_FUNCT6)
+DEFINE_OPIVX(vmax, VMAX_FUNCT6)
+DEFINE_OPIVV(vand, VAND_FUNCT6)
+DEFINE_OPIVX(vand, VAND_FUNCT6)
+DEFINE_OPIVI(vand, VAND_FUNCT6)
+DEFINE_OPIVV(vor, VOR_FUNCT6)
+DEFINE_OPIVX(vor, VOR_FUNCT6)
+DEFINE_OPIVI(vor, VOR_FUNCT6)
+DEFINE_OPIVV(vxor, VXOR_FUNCT6)
+DEFINE_OPIVX(vxor, VXOR_FUNCT6)
+DEFINE_OPIVI(vxor, VXOR_FUNCT6)
+DEFINE_OPIVV(vrgather, VRGATHER_FUNCT6)
+DEFINE_OPIVX(vrgather, VRGATHER_FUNCT6)
+DEFINE_OPIVI(vrgather, VRGATHER_FUNCT6)
+
+DEFINE_OPIVX(vslidedown, VSLIDEDOWN_FUNCT6)
+DEFINE_OPIVI(vslidedown, VSLIDEDOWN_FUNCT6)
+DEFINE_OPIVX(vslideup, VSLIDEUP_FUNCT6)
+DEFINE_OPIVI(vslideup, VSLIDEUP_FUNCT6)
+
+DEFINE_OPIVV(vmseq, VMSEQ_FUNCT6)
+DEFINE_OPIVX(vmseq, VMSEQ_FUNCT6)
+DEFINE_OPIVI(vmseq, VMSEQ_FUNCT6)
+
+DEFINE_OPIVV(vmsne, VMSNE_FUNCT6)
+DEFINE_OPIVX(vmsne, VMSNE_FUNCT6)
+DEFINE_OPIVI(vmsne, VMSNE_FUNCT6)
+
+DEFINE_OPIVV(vmsltu, VMSLTU_FUNCT6)
+DEFINE_OPIVX(vmsltu, VMSLTU_FUNCT6)
+
+DEFINE_OPIVV(vmslt, VMSLT_FUNCT6)
+DEFINE_OPIVX(vmslt, VMSLT_FUNCT6)
+
+DEFINE_OPIVV(vmsle, VMSLE_FUNCT6)
+DEFINE_OPIVX(vmsle, VMSLE_FUNCT6)
+DEFINE_OPIVI(vmsle, VMSLE_FUNCT6)
+
+DEFINE_OPIVV(vmsleu, VMSLEU_FUNCT6)
+DEFINE_OPIVX(vmsleu, VMSLEU_FUNCT6)
+DEFINE_OPIVI(vmsleu, VMSLEU_FUNCT6)
+
+DEFINE_OPIVI(vmsgt, VMSGT_FUNCT6)
+DEFINE_OPIVX(vmsgt, VMSGT_FUNCT6)
+
+DEFINE_OPIVI(vmsgtu, VMSGTU_FUNCT6)
+DEFINE_OPIVX(vmsgtu, VMSGTU_FUNCT6)
+
+DEFINE_OPIVV(vsrl, VSRL_FUNCT6)
+DEFINE_OPIVX(vsrl, VSRL_FUNCT6)
+DEFINE_OPIVI(vsrl, VSRL_FUNCT6)
+
+DEFINE_OPIVV(vsll, VSLL_FUNCT6)
+DEFINE_OPIVX(vsll, VSLL_FUNCT6)
+DEFINE_OPIVI(vsll, VSLL_FUNCT6)
+#undef DEFINE_OPIVI
+#undef DEFINE_OPIVV
+#undef DEFINE_OPIVX
+
 void Assembler::vsetvli(Register rd, Register rs1, VSew vsew, Vlmul vlmul,
                         TailAgnosticType tail, MaskAgnosticType mask) {
   int32_t zimm = GenZimm(vsew, vlmul, tail, mask);

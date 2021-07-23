@@ -3701,12 +3701,21 @@ void Simulator::DecodeRvvIVV() {
       break;
     }
     case RO_V_VMV_VV: {
-      RVV_VI_VVXI_MERGE_LOOP({
-        vd = vs1;
-        USE(vs2);
-        USE(rs1);
-        USE(simm5);
-      });
+      if (instr_.RvvVM()) {
+        RVV_VI_VVXI_MERGE_LOOP({
+          vd = vs1;
+          USE(simm5);
+          USE(vs2);
+          USE(rs1);
+        });
+      } else {
+        RVV_VI_VVXI_MERGE_LOOP({
+          bool use_first = (Rvvelt<uint64_t>(0, (i / 64)) >> (i % 64)) & 0x1;
+          vd = use_first ? vs1 : vs2;
+          USE(simm5);
+          USE(rs1);
+        });
+      }
       break;
     }
     case RO_V_VMSEQ_VV: {
@@ -3803,7 +3812,12 @@ void Simulator::DecodeRvvIVI() {
     }
     case RO_V_VMV_VI:
       if (instr_.RvvVM()) {
-        UNIMPLEMENTED_RISCV();
+        RVV_VI_VVXI_MERGE_LOOP({
+          vd = simm5;
+          USE(vs1);
+          USE(vs2);
+          USE(rs1);
+        });
       } else {
         RVV_VI_VVXI_MERGE_LOOP({
           bool use_first = (Rvvelt<uint64_t>(0, (i / 64)) >> (i % 64)) & 0x1;
@@ -3827,6 +3841,15 @@ void Simulator::DecodeRvvIVI() {
       break;
     case RO_V_VMSGT_VI:
       RVV_VI_VI_LOOP({ vd = vs2 > simm5; })
+      break;
+    case RO_V_VSLIDEDOWN_VI:
+      UNIMPLEMENTED_RISCV();
+      break;
+    case RO_V_VSRL_VI:
+      RVV_VI_VI_LOOP({ vd = vs2 >> simm5; })
+      break;
+    case RO_V_VSLL_VI:
+      RVV_VI_VI_LOOP({ vd = vs2 << simm5; })
       break;
     default:
       UNIMPLEMENTED_RISCV();
@@ -3961,7 +3984,12 @@ void Simulator::DecodeRvvIVX() {
     }
     case RO_V_VMV_VX:
       if (instr_.RvvVM()) {
-        UNIMPLEMENTED_RISCV();
+        RVV_VI_VVXI_MERGE_LOOP({
+          vd = rs1;
+          USE(vs1);
+          USE(vs2);
+          USE(simm5);
+        });
       } else {
         RVV_VI_VVXI_MERGE_LOOP({
           bool use_first = (Rvvelt<uint64_t>(0, (i / 64)) >> (i % 64)) & 0x1;

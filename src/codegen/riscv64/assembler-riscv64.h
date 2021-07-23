@@ -709,76 +709,44 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 #define ARG \
   VRegister vd, Register rs1, uint8_t lumop, VSew vsew, MaskType mask = NoMask
 
-  SegInstr(vl)
-  SegInstr(vs)
+  SegInstr(vl) SegInstr(vs)
 #undef ARG
 
 #define ARG \
   VRegister vd, Register rs1, Register rs2, VSew vsew, MaskType mask = NoMask
 
-  SegInstr(vls)
-  SegInstr(vss)
+      SegInstr(vls) SegInstr(vss)
 #undef ARG
 
 #define ARG \
   VRegister vd, Register rs1, VRegister rs2, VSew vsew, MaskType mask = NoMask
 
-  SegInstr(vsx)
-  SegInstr(vlx)
+          SegInstr(vsx) SegInstr(vlx)
 #undef ARG
 #undef SegInstr
 
       // RVV Vector Arithmetic Instruction
 
-  void vmv_vv(VRegister vd, VRegister vs1) {
-    GenInstrV(VMV_FUNCT6, OP_IVV, vd, vs1, v0, NoMask);
-  }
-
-  void vmv_vx(VRegister vd, Register rs1) {
-    GenInstrV(VMV_FUNCT6, OP_IVX, vd, rs1, v0, NoMask);
-  }
-
-  void vmv_vi(VRegister vd, uint8_t simm5) {
-    GenInstrV(VMV_FUNCT6, vd, simm5, v0, NoMask);
-  }
-
-  void vmv_xs(Register rd, VRegister vs2) {
-    GenInstrV(VWXUNARY0_FUNCT6, OP_MVV, rd, v0, vs2, NoMask);
-  }
-
-  void vmv_sx(VRegister vd, Register rs1) {
-    GenInstrV(VRXUNARY0_FUNCT6, OP_MVX, vd, rs1, v0, NoMask);
-  }
-
-  void vmerge_vv(VRegister vd, VRegister vs1, VRegister vs2) {
-    GenInstrV(VMV_FUNCT6, OP_IVV, vd, vs1, vs2, Mask);
-  }
-
-  void vmerge_vx(VRegister vd, Register rs1, VRegister vs2) {
-    GenInstrV(VMV_FUNCT6, OP_IVX, vd, rs1, vs2, Mask);
-  }
-
-  void vmerge_vi(VRegister vd, uint8_t imm5, VRegister vs2) {
-    GenInstrV(VMV_FUNCT6, vd, imm5, vs2, Mask);
-  }
+      void vmv_vv(VRegister vd, VRegister vs1);
+  void vmv_vx(VRegister vd, Register rs1);
+  void vmv_vi(VRegister vd, uint8_t simm5);
+  void vmv_xs(Register rd, VRegister vs2);
+  void vmv_sx(VRegister vd, Register rs1);
+  void vmerge_vv(VRegister vd, VRegister vs1, VRegister vs2);
+  void vmerge_vx(VRegister vd, Register rs1, VRegister vs2);
+  void vmerge_vi(VRegister vd, uint8_t imm5, VRegister vs2);
 
 #define DEFINE_OPIVV(name, funct6)                           \
   void name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
-                 MaskType mask = NoMask) {                   \
-    GenInstrV(funct6, OP_IVV, vd, vs1, vs2, mask);           \
-  }
+                 MaskType mask = NoMask);
 
 #define DEFINE_OPIVX(name, funct6)                          \
   void name##_vx(VRegister vd, VRegister vs2, Register rs1, \
-                 MaskType mask = NoMask) {                  \
-    GenInstrV(funct6, OP_IVX, vd, rs1, vs2, mask);          \
-  }
+                 MaskType mask = NoMask);
 
 #define DEFINE_OPIVI(name, funct6)                          \
   void name##_vi(VRegister vd, VRegister vs2, uint8_t imm5, \
-                 MaskType mask = NoMask) {                  \
-    GenInstrV(funct6, vd, imm5, vs2, mask);                 \
-  }
+                 MaskType mask = NoMask);
 
   DEFINE_OPIVV(vadd, VADD_FUNCT6)
   DEFINE_OPIVX(vadd, VADD_FUNCT6)
@@ -850,6 +818,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   DEFINE_OPIVI(vmsgtu, VMSGTU_FUNCT6)
   DEFINE_OPIVX(vmsgtu, VMSGTU_FUNCT6)
+
+  DEFINE_OPIVV(vsrl, VSRL_FUNCT6)
+  DEFINE_OPIVX(vsrl, VSRL_FUNCT6)
+  DEFINE_OPIVI(vsrl, VSRL_FUNCT6)
+
+  DEFINE_OPIVV(vsll, VSLL_FUNCT6)
+  DEFINE_OPIVX(vsll, VSLL_FUNCT6)
+  DEFINE_OPIVI(vsll, VSLL_FUNCT6)
+#undef DEFINE_OPIVI
+#undef DEFINE_OPIVV
+#undef DEFINE_OPIVX
 
   void vnot_vv(VRegister dst, VRegister src) { vxor_vi(dst, src, -1); }
 

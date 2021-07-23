@@ -2675,7 +2675,7 @@ void LiftoffAssembler::emit_i16x8_extract_lane_u(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  VU.set(kScratchReg, E64, m1);
+  VU.set(kScratchReg, E32, m1);
   vslidedown_vi(v31, lhs.fp().toV(), imm_lane_idx);
   vmv_xs(dst.gp(), v31);
 }

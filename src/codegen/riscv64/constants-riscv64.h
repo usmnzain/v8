@@ -823,6 +823,16 @@ enum Opcode : uint32_t {
   RO_V_VSLIDEDOWN_VI = OP_IVI | (VSLIDEDOWN_FUNCT6 << kRvvFunct6Shift),
   RO_V_VSLIDEDOWN_VX = OP_IVX | (VSLIDEDOWN_FUNCT6 << kRvvFunct6Shift),
 
+  VSRL_FUNCT6 = 0b101000,
+  RO_V_VSRL_VI = OP_IVI | (VSRL_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSRL_VV = OP_IVV | (VSRL_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSRL_VX = OP_IVX | (VSRL_FUNCT6 << kRvvFunct6Shift),
+
+  VSLL_FUNCT6 = 0b100101,
+  RO_V_VSLL_VI = OP_IVI | (VSLL_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSLL_VV = OP_IVV | (VSLL_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VSLL_VX = OP_IVX | (VSLL_FUNCT6 << kRvvFunct6Shift),
+
   VWXUNARY0_FUNCT6 = 0b010000,
   VRXUNARY0_FUNCT6 = 0b010000,
 

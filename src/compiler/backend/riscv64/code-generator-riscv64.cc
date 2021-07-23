@@ -1922,9 +1922,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       uint64_t imm1 = make_uint64(i.InputUint32(1), i.InputUint32(0));
       uint64_t imm2 = make_uint64(i.InputUint32(3), i.InputUint32(2));
       (__ VU).set(kScratchReg, VSew::E64, Vlmul::m1);
+      __ li(kScratchReg, 1);
+      __ vmv_vx(v0, kScratchReg);
       __ li(kScratchReg, imm1);
       __ vmerge_vx(dst, kScratchReg, dst);
       __ li(kScratchReg, imm2);
+      __ vsll_vi(v0, v0, 1);
       __ vmerge_vx(dst, kScratchReg, dst);
       break;
     }
@@ -2055,7 +2058,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvI32x4ExtractLane: {
-      
+      (__ VU).set(kScratchReg, E32, m1);
+      __ vslidedown_vi(v31, i.InputSimd128Register(0), i.InputInt8(1));
+      __ vmv_xs(i.OutputRegister(), v31);
+      break;
     }
     default:
       switch (arch_opcode) {
