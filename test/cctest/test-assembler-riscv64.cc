@@ -2010,6 +2010,25 @@ TEST(RVV_VSETIVLI) {
   };
   GenAndRunTest(fn);
 }
+
+TEST(RVV_VV) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  auto fn = [](MacroAssembler& assm) {
+    uint64_t imm1 = make_uint64(3, 4);
+    uint64_t imm2 = make_uint64(5, 6);
+    (__ VU).set(t0, VSew::E64, Vlmul::m1);
+    __ li(t0, 1);
+    __ vmv_vx(v0, t0);
+    __ li(t0, imm1);
+    __ vmerge_vx(v3, t0, v3);
+    __ li(t0, imm2);
+    __ vsll_vi(v0, v0, 1);
+    __ vmerge_vx(v3, t0, v3);
+  };
+  GenAndRunTest(fn);
+}
 #undef __
 
 }  // namespace internal
