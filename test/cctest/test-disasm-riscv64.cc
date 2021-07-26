@@ -530,7 +530,8 @@ TEST(Previleged) {
 
 TEST(RVV) {
   SET_UP();
-  COMPARE(vsetvlmax(kScratchReg, E64, m1), "018079d7       vsetvli   s3, zero_reg, E64, m1");
+  COMPARE(vsetvlmax(kScratchReg, E64, m1),
+          "018079d7       vsetvli   s3, zero_reg, E64, m1");
   COMPARE(vl(v2, a0, 0, VSew::E8), "02050107       vle8.v       v2, (a0)");
   COMPARE(vl(v2, a0, 0, VSew::E8), "02050107       vle8.v       v2, (a0)");
   COMPARE(vl(v2, a0, 0, VSew::E16), "02055107       vle16.v       v2, (a0)");

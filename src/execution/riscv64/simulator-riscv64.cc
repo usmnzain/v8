@@ -116,6 +116,7 @@ class RiscvDebugger {
   int64_t GetFPURegisterValue(int regnum);
   float GetFPURegisterValueFloat(int regnum);
   double GetFPURegisterValueDouble(int regnum);
+  __int128_t GetVRegisterValue(int regnum);
   bool GetValue(const char* desc, int64_t* value);
 };
 
@@ -153,6 +154,14 @@ double RiscvDebugger::GetFPURegisterValueDouble(int regnum) {
     return sim_->get_pc();
   } else {
     return sim_->get_fpu_register_double(regnum);
+  }
+}
+
+__int128_t RiscvDebugger::GetVRegisterValue(int regnum) {
+  if (regnum == kNumVRegisters) {
+    return sim_->get_pc();
+  } else {
+    return sim_->get_vregister(regnum);
   }
 }
 
@@ -315,6 +324,7 @@ void RiscvDebugger::Debug() {
           } else {
             int regnum = Registers::Number(arg1);
             int fpuregnum = FPURegisters::Number(arg1);
+            int vregnum = VRegisters::Number(arg1);
 
             if (regnum != kInvalidRegister) {
               value = GetRegisterValue(regnum);
@@ -325,6 +335,11 @@ void RiscvDebugger::Debug() {
               dvalue = GetFPURegisterValueDouble(fpuregnum);
               PrintF("%3s: 0x%016" PRIx64 "  %16.4e\n",
                      FPURegisters::Name(fpuregnum), value, dvalue);
+            } else if (vregnum != kInvalidVRegister) {
+              __int128_t v = GetVRegisterValue(vregnum);
+              PrintF("\t%s:0x%016" PRIx64 "%016" PRIx64 "\n",
+                     VRegisters::Name(vregnum), (uint64_t)(v >> 64),
+                     (uint64_t)v);
             } else {
               PrintF("%s unrecognized\n", arg1);
             }
@@ -3842,9 +3857,37 @@ void Simulator::DecodeRvvIVI() {
     case RO_V_VMSGT_VI:
       RVV_VI_VI_LOOP({ vd = vs2 > simm5; })
       break;
-    case RO_V_VSLIDEDOWN_VI:
-      UNIMPLEMENTED_RISCV();
-      break;
+    case RO_V_VSLIDEDOWN_VI: {
+      const uint8_t sh = instr_.RvvUimm5();
+      RVV_VI_GENERAL_LOOP_BASE
+
+      reg_t offset = 0;
+      bool is_valid = (i + sh) < rvv_vlmax();
+
+      if (is_valid) {
+        offset = sh;
+      }
+
+      switch (rvv_sew()) {
+        case E8: {
+          VI_XI_SLIDEDOWN_PARAMS(8, offset);
+          vd = is_valid ? vs2 : 0;
+        } break;
+        case E16: {
+          VI_XI_SLIDEDOWN_PARAMS(16, offset);
+          vd = is_valid ? vs2 : 0;
+        } break;
+        case E32: {
+          VI_XI_SLIDEDOWN_PARAMS(32, offset);
+          vd = is_valid ? vs2 : 0;
+        } break;
+        default: {
+          VI_XI_SLIDEDOWN_PARAMS(64, offset);
+          vd = is_valid ? vs2 : 0;
+        } break;
+      }
+      RVV_VI_LOOP_END
+    } break;
     case RO_V_VSRL_VI:
       RVV_VI_VI_LOOP({ vd = vs2 >> simm5; })
       break;
@@ -4032,6 +4075,52 @@ void Simulator::DecodeRvvIVX() {
   }
 }
 
+void Simulator::DecodeRvvMVV() {
+  DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_MVV);
+  switch (instr_.InstructionBits() & kVTypeMask) {
+    case RO_V_VWXUNARY0: {
+      if (rvv_vs1_reg() == 0) {
+        switch (rvv_vsew()) {
+          case E8:
+            set_rd(Rvvelt<type_sew_t<8>::type>(rvv_vs2_reg(), 0));
+            break;
+          case E16:
+            set_rd(Rvvelt<type_sew_t<16>::type>(rvv_vs2_reg(), 0));
+            break;
+          case E32:
+            set_rd(Rvvelt<type_sew_t<32>::type>(rvv_vs2_reg(), 0));
+            break;
+          case E64:
+            set_rd(Rvvelt<type_sew_t<64>::type>(rvv_vs2_reg(), 0));
+            break;
+          default:
+            UNREACHABLE();
+            break;
+        }
+        set_rvv_vstart(0);
+        SNPrintF(trace_buf_, "0x%ld", get_register(rd_reg()));
+      } else {
+        v8::base::EmbeddedVector<char, 256> buffer;
+        disasm::NameConverter converter;
+        disasm::Disassembler dasm(converter);
+        dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(&instr_));
+        PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
+               reinterpret_cast<intptr_t>(&instr_), buffer.begin());
+        UNIMPLEMENTED_RISCV();
+      }
+    } break;
+    default:
+      v8::base::EmbeddedVector<char, 256> buffer;
+      disasm::NameConverter converter;
+      disasm::Disassembler dasm(converter);
+      dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(&instr_));
+      PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
+             reinterpret_cast<intptr_t>(&instr_), buffer.begin());
+      UNIMPLEMENTED_RISCV();
+      break;
+  }
+}
+
 void Simulator::DecodeVType() {
   switch (instr_.InstructionBits() & (kFunct3Mask | kBaseOpcodeMask)) {
     case OP_IVV:
@@ -4043,7 +4132,7 @@ void Simulator::DecodeVType() {
       return;
       break;
     case OP_MVV:
-      UNIMPLEMENTED_RISCV();
+      DecodeRvvMVV();
       return;
       break;
     case OP_IVI:

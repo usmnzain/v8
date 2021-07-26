@@ -400,6 +400,7 @@ class Simulator : public SimulatorBase {
 #undef CAST_VSEW
     }
   }
+
   inline const char* rvv_lmul_s() const {
     uint32_t vlmul = rvv_vlmul();
     switch (vlmul) {
@@ -413,6 +414,7 @@ class Simulator : public SimulatorBase {
     }
   }
 
+  // return size of lane.8 16 32 64
   inline uint32_t rvv_sew() const {
     DCHECK_EQ(rvv_vsew() & (~0x7), 0x0);
     return (0x1 << rvv_vsew()) * 8;
@@ -757,6 +759,14 @@ class Simulator : public SimulatorBase {
   type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);  \
   type_sew_t<x>::type rs1 = (type_sew_t<x>::type)(get_register(rs1_reg())); \
   type_sew_t<x>::type simm5 = (type_sew_t<x>::type)(instr_.RvvSimm5());
+
+#define VI_XI_SLIDEDOWN_PARAMS(x, off)                           \
+  auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true); \
+  auto vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i + off);
+
+#define VI_XI_SLIDEUP_PARAMS(x, offset)                          \
+  auto& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true); \
+  auto vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i - offset);
 
   inline void rvv_trace_vd() {
     if (::v8::internal::FLAG_trace_sim) {
@@ -1207,6 +1217,7 @@ class Simulator : public SimulatorBase {
   void DecodeRvvIVV();
   void DecodeRvvIVI();
   void DecodeRvvIVX();
+  void DecodeRvvMVV();
   bool DecodeRvvVL();
   bool DecodeRvvVS();
 

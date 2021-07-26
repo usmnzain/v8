@@ -12,9 +12,9 @@
 
 // UNIMPLEMENTED_ macro for RISCV.
 #ifdef DEBUG
-#define UNIMPLEMENTED_RISCV()                                              \
-  v8::internal::PrintF("%s, \tline %d: \tfunction %s not implemented. \n", \
-                       __FILE__, __LINE__, __func__)
+#define UNIMPLEMENTED_RISCV()                                               \
+  v8::internal::PrintF("%s, \tline %d: \tfunction %s  not implemented. \n", \
+                       __FILE__, __LINE__, __func__);
 #else
 #define UNIMPLEMENTED_RISCV()
 #endif

@@ -1124,8 +1124,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     explicit VectorUnit(Assembler* assm) : assm_(assm) {}
 
     void set(Register rd, VSew sew, Vlmul lmul) {
-      if (sew != sew_ || lmul != lmul_ || vl != vlmax())
+      if (sew != sew_ || lmul != lmul_ || vl != vlmax()) {
+        sew_ = sew;
+        lmul_ = lmul;
         assm_->vsetvlmax(rd, sew_, lmul_);
+      }
     }
 
     void set(VSew sew, Vlmul lmul) {

@@ -982,6 +982,14 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueKind kind) {
     case kF64:
       TurboAssembler::LoadDouble(reg.fp(), src);
       break;
+    case kS128: {
+      Register src_reg = src.offset() == 0 ? src.rm() : kScratchReg;
+      if (src.offset() != 0) {
+        TurboAssembler::Add64(src_reg, src.rm(), src.offset());
+      }
+      vl(reg.fp().toV(), src_reg, 0, E8);
+      break;
+    }
     default:
       UNREACHABLE();
   }

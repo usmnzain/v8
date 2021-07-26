@@ -1907,14 +1907,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvRvvSt: {
       (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
-      __ Add64(kScratchReg, i.MemoryOperand().rm(), i.MemoryOperand().offset());
-      __ vs(i.InputSimd128Register(2), kScratchReg, 0, VSew::E8);
+      Register dst = i.MemoryOperand().offset() == 0 ? i.MemoryOperand().rm()
+                                                     : kScratchReg;
+      if (i.MemoryOperand().offset() != 0) {
+        __ Add64(dst, i.MemoryOperand().rm(), i.MemoryOperand().offset());
+      }
+      __ vs(i.InputSimd128Register(2), dst, 0, VSew::E8);
       break;
     }
     case kRiscvRvvLd: {
       (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
-      __ Add64(kScratchReg, i.MemoryOperand().rm(), i.MemoryOperand().offset());
-      __ vl(i.OutputSimd128Register(), kScratchReg, 0, VSew::E8);
+      Register src = i.MemoryOperand().offset() == 0 ? i.MemoryOperand().rm()
+                                                     : kScratchReg;
+      if (i.MemoryOperand().offset() != 0) {
+        __ Add64(src, i.MemoryOperand().rm(), i.MemoryOperand().offset());
+      }
+      __ vl(i.OutputSimd128Register(), src, 0, VSew::E8);
       break;
     }
     case kRiscvS128Const: {
@@ -2059,11 +2067,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvI32x4ExtractLane: {
       (__ VU).set(kScratchReg, E32, m1);
-      __ vslidedown_vi(v31, i.InputSimd128Register(0), i.InputInt8(1));
-      __ vmv_xs(i.OutputRegister(), v31);
+      if (i.InputInt8(1) != 0) {
+        __ vslidedown_vi(v31, i.InputSimd128Register(0), i.InputInt8(1));
+      }
+      __ vmv_xs(i.OutputRegister(), i.InputSimd128Register(0));
       break;
     }
     default:
+#ifdef DEBUG
       switch (arch_opcode) {
 #define Print(name)       \
   case k##name:           \
@@ -2074,6 +2085,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         default:
           break;
       }
+#endif
       UNIMPLEMENTED();
   }
   return kSuccess;
@@ -2933,7 +2945,21 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   } else if (source->IsFPRegister()) {
     MachineRepresentation rep = LocationOperand::cast(source)->representation();
     if (rep == MachineRepresentation::kSimd128) {
-      UNIMPLEMENTED();
+      VRegister src = g.ToSimd128Register(source);
+      if (destination->IsSimd128Register()) {
+        VRegister dst = g.ToSimd128Register(destination);
+        __ vmv_vv(dst, src);
+      } else {
+        DCHECK(destination->IsSimd128StackSlot());
+        Register dst = g.ToMemOperand(destination).offset() == 0
+                           ? g.ToMemOperand(destination).rm()
+                           : kScratchReg;
+        if (g.ToMemOperand(destination).offset() != 0) {
+          __ Add64(dst, g.ToMemOperand(destination).rm(),
+                   g.ToMemOperand(destination).offset());
+        }
+        __ vs(src, dst, 0, E8);
+      }
     } else {
       FPURegister src = g.ToDoubleRegister(source);
       if (destination->IsFPRegister()) {
@@ -2954,7 +2980,25 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     MemOperand src = g.ToMemOperand(source);
     MachineRepresentation rep = LocationOperand::cast(source)->representation();
     if (rep == MachineRepresentation::kSimd128) {
-      UNIMPLEMENTED();
+      Register src_reg = src.offset() == 0 ? src.rm() : kScratchReg;
+      if (src.offset() != 0) {
+        __ Add64(src_reg, src.rm(), src.offset());
+      }
+      if (destination->IsSimd128Register()) {
+        __ vl(g.ToSimd128Register(destination), src_reg, 0, E8);
+      } else {
+        DCHECK(destination->IsSimd128StackSlot());
+        VRegister temp = kSimd128ScratchReg;
+        Register dst = g.ToMemOperand(destination).offset() == 0
+                           ? g.ToMemOperand(destination).rm()
+                           : kScratchReg;
+        if (g.ToMemOperand(destination).offset() != 0) {
+          __ Add64(dst, g.ToMemOperand(destination).rm(),
+                   g.ToMemOperand(destination).offset());
+        }
+        __ vl(temp, src_reg, 0, E8);
+        __ vs(temp, dst, 0, E8);
+      }
     } else {
       if (destination->IsFPRegister()) {
         if (rep == MachineRepresentation::kFloat32) {

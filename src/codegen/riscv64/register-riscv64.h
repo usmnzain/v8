@@ -55,10 +55,10 @@ namespace internal {
   V(v16) V(v17) V(v18) V(v19) V(v20) V(v21) V(v22) V(v23) \
   V(v24) V(v25) V(v26) V(v27) V(v28) V(v29) V(v30) V(v31)
 
-#define ALLOCATABLE_DOUBLE_REGISTERS(V)                                   \
-  V(ft0)  V(ft1)  V(ft2) V(ft3)                                           \
-  V(ft4)  V(ft5) V(ft6) V(ft7) V(fa0) V(fa1) V(fa2) V(fa3) V(fa4) V(fa5)  \
-  V(fa6) V(fa7)
+#define ALLOCATABLE_DOUBLE_REGISTERS(V)                         \
+  V(ft1)  V(ft2) V(ft3) V(ft4)  V(ft5) V(ft6) V(ft7) V(ft8)      \
+  V(ft9)  V(ft10) V(ft11) V(fa0) V(fa1) V(fa2) V(fa3) V(fa4) V(fa5)  \
+  V(fa6)  V(fa7)
 
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {
@@ -264,6 +264,8 @@ enum VRegisterCode {
 };
 class VRegister : public RegisterBase<VRegister, kVRAfterLast> {
   friend class RegisterBase;
+
+ public:
   explicit constexpr VRegister(int code) : RegisterBase(code) {}
 };
 
@@ -288,7 +290,15 @@ class FPURegister : public RegisterBase<FPURegister, kDoubleAfterLast> {
   // FIXME(riscv64): In Rvv, Vector regs is different from Float Regs. But in
   // this cl, in order to facilitate modification, it is assumed that the vector
   // register and floating point register are shared.
-  VRegister toV() const { return VRegister::from_code(code()); }
+  VRegister toV() const {
+    DCHECK(base::IsInRange(code(), 0, kVRAfterLast - 1));
+    // FIXME(riscv): Because V0 is a special mask reg, so can't allocate it.
+    // And v8 is unallocated so we replace v0 with v8
+    if (code() == 0) {
+      return VRegister(8);
+    }
+    return VRegister(code());
+  }
 
  private:
   friend class RegisterBase;
@@ -329,7 +339,7 @@ constexpr Register cp = s7;
 constexpr Register kScratchReg = s3;
 constexpr Register kScratchReg2 = s4;
 
-constexpr DoubleRegister kScratchDoubleReg = fs11;
+constexpr DoubleRegister kScratchDoubleReg = ft0;
 
 constexpr DoubleRegister kDoubleRegZero = fs9;
 
@@ -365,6 +375,7 @@ constexpr Register kWasmInstanceRegister = a0;
 constexpr Register kWasmCompileLazyFuncIndexRegister = t0;
 
 constexpr DoubleRegister kFPReturnRegister0 = fa0;
+constexpr VRegister kSimd128ScratchReg = v6;
 
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 constexpr Register kPtrComprCageBaseRegister = s11;  // callee save

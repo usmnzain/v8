@@ -2124,7 +2124,7 @@ void Decoder::DecodeRvvMVV(Instruction* instr) {
   switch (instr->InstructionBits() & kVTypeMask) {
     case RO_V_VWXUNARY0:
       if (instr->Vs1Value() == 0x0) {
-        Format(instr, "vmv.x.s  'rd, 'vs2");
+        Format(instr, "vmv.x.s   'rd, 'vs2");
       }
       break;
     default:
@@ -2138,7 +2138,7 @@ void Decoder::DecodeRvvMVX(Instruction* instr) {
   switch (instr->InstructionBits() & kVTypeMask) {
     case RO_V_VRXUNARY0:
       if (instr->Vs2Value() == 0x0) {
-        Format(instr, "vmv.s.x  'vd, 'rs1");
+        Format(instr, "vmv.s.x   'vd, 'rs1");
       }
       break;
     default:
