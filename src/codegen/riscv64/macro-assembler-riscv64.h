@@ -899,9 +899,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     }
   }
 
-
-  //RVV
-  void RvvExtractLane(Register dst, VRegister src, int8_t idx, VSew sew, Vlmul lmul) {
+  // RVV
+  void RvvExtractLane(Register dst, VRegister src, int8_t idx, VSew sew,
+                      Vlmul lmul) {
     VU.set(kScratchReg, sew, lmul);
     VRegister Vsrc = idx != 0 ? kSimd128ScratchReg : src;
     if (idx != 0) {

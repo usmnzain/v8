@@ -1012,10 +1012,10 @@ class Simulator : public SimulatorBase {
   type_sew_t<x>::type vs1 = Rvvelt<type_sew_t<x>::type>(rvv_vs1_reg(), i); \
   type_sew_t<x>::type& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);
 
-#define XI_WITH_CARRY_PARAMS(x)                                              \
-  type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);   \
+#define XI_WITH_CARRY_PARAMS(x)                                             \
+  type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);  \
   type_sew_t<x>::type rs1 = (type_sew_t<x>::type)(get_register(rs1_reg())); \
-  type_sew_t<x>::type simm5 = (type_sew_t<x>::type)instr_.RvvSimm5();        \
+  type_sew_t<x>::type simm5 = (type_sew_t<x>::type)instr_.RvvSimm5();       \
   type_sew_t<x>::type& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);
 
 // carry/borrow bit loop

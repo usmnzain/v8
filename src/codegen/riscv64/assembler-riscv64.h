@@ -725,9 +725,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 #undef ARG
 #undef SegInstr
 
-  // RVV Vector Arithmetic Instruction
+      // RVV Vector Arithmetic Instruction
 
-  void vmv_vv(VRegister vd, VRegister vs1);
+      void vmv_vv(VRegister vd, VRegister vs1);
   void vmv_vx(VRegister vd, Register rs1);
   void vmv_vi(VRegister vd, uint8_t simm5);
   void vmv_xs(Register rd, VRegister vs2);
