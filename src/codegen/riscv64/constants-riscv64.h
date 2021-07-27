@@ -833,6 +833,16 @@ enum Opcode : uint32_t {
   RO_V_VSLL_VV = OP_IVV | (VSLL_FUNCT6 << kRvvFunct6Shift),
   RO_V_VSLL_VX = OP_IVX | (VSLL_FUNCT6 << kRvvFunct6Shift),
 
+  VADC_FUNCT6 = 0b010000,
+  RO_V_VADC_VI = OP_IVI | (VADC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VADC_VV = OP_IVV | (VADC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VADC_VX = OP_IVX | (VADC_FUNCT6 << kRvvFunct6Shift),
+  
+  VMADC_FUNCT6 = 0b010001,
+  RO_V_VMADC_VI = OP_IVI | (VMADC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMADC_VV = OP_IVV | (VMADC_FUNCT6 << kRvvFunct6Shift),
+  RO_V_VMADC_VX = OP_IVX | (VMADC_FUNCT6 << kRvvFunct6Shift),
+
   VWXUNARY0_FUNCT6 = 0b010000,
   VRXUNARY0_FUNCT6 = 0b010000,
 

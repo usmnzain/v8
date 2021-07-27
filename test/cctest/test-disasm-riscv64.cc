@@ -587,6 +587,9 @@ TEST(RVV) {
   COMPARE(vmsgtu_vx(v17, v28, a5),
           "7bc7c8d7       vmsgtu.vx v17, v28, a5");
   COMPARE(vmsgtu_vi(v17, v28, 5), "7bc2b8d7       vmsgtu.vi  v17, v28, 5");
+  COMPARE(vadc_vv(v7, v9, v6), "406483d7       vadc.vvm  v7, v6, v9");
+  COMPARE(vadc_vx(v7, t6, v9), "409fc3d7       vadc.vxm  v7, v9, t6");
+  COMPARE(vadc_vi(v7, 5, v9), "4092b3d7       vadc.vim  v7, v9, 5");
   VERIFY_RUN();
 }
 

@@ -828,9 +828,12 @@ class Simulator : public SimulatorBase {
   set_rvv_vstart(0);    \
   }
 
+#define RVV_VI_MASK_VARS       \
+  const uint8_t midx = i / 64; \
+  const uint8_t mpos = i % 64;
+
 #define RVV_VI_LOOP_MASK_SKIP(BODY)                               \
-  const uint8_t midx = i / 64;                                    \
-  const uint8_t mpos = i % 64;                                    \
+  RVV_VI_MASK_VARS                                                \
   if (instr_.RvvVM() == 0) {                                      \
     bool skip = ((Rvvelt<uint64_t>(0, midx) >> mpos) & 0x1) == 0; \
     if (skip) {                                                   \
@@ -1004,9 +1007,55 @@ class Simulator : public SimulatorBase {
   RVV_VI_LOOP_END                    \
   rvv_trace_vd();
 
-#define VI_MASK_VARS       \
-  const int midx = i / 64; \
-  const int mpos = i % 64;
+#define VV_WITH_CARRY_PARAMS(x)                                            \
+  type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i); \
+  type_sew_t<x>::type vs1 = Rvvelt<type_sew_t<x>::type>(rvv_vs1_reg(), i); \
+  type_sew_t<x>::type& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);
+
+#define XI_WITH_CARRY_PARAMS(x)                                              \
+  type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);   \
+  type_sew_t<x>::type rs1 = (type_sew_t<x>::type)(get_register(rs1_reg())); \
+  type_sew_t<x>::type simm5 = (type_sew_t<x>::type)instr_.RvvSimm5();        \
+  type_sew_t<x>::type& vd = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), i, true);
+
+// carry/borrow bit loop
+#define RVV_VI_VV_LOOP_WITH_CARRY(BODY) \
+  CHECK_NE(rvv_vd_reg(), 0);            \
+  RVV_VI_GENERAL_LOOP_BASE              \
+  RVV_VI_MASK_VARS                      \
+  if (rvv_vsew() == E8) {               \
+    VV_WITH_CARRY_PARAMS(8)             \
+    BODY;                               \
+  } else if (rvv_vsew() == E16) {       \
+    VV_WITH_CARRY_PARAMS(16)            \
+    BODY;                               \
+  } else if (rvv_vsew() == E32) {       \
+    VV_WITH_CARRY_PARAMS(32)            \
+    BODY;                               \
+  } else if (rvv_vsew() == E64) {       \
+    VV_WITH_CARRY_PARAMS(64)            \
+    BODY;                               \
+  }                                     \
+  RVV_VI_LOOP_END
+
+#define RVV_VI_XI_LOOP_WITH_CARRY(BODY) \
+  CHECK_NE(rvv_vd_reg(), 0);            \
+  RVV_VI_GENERAL_LOOP_BASE              \
+  RVV_VI_MASK_VARS                      \
+  if (rvv_vsew() == E8) {               \
+    XI_WITH_CARRY_PARAMS(8)             \
+    BODY;                               \
+  } else if (rvv_vsew() == E16) {       \
+    XI_WITH_CARRY_PARAMS(16)            \
+    BODY;                               \
+  } else if (rvv_vsew() == E32) {       \
+    XI_WITH_CARRY_PARAMS(32)            \
+    BODY;                               \
+  } else if (rvv_vsew() == E64) {       \
+    XI_WITH_CARRY_PARAMS(64)            \
+    BODY;                               \
+  }                                     \
+  RVV_VI_LOOP_END
 
 #define VI_STRIP(inx) reg_t vreg_inx = inx;
 

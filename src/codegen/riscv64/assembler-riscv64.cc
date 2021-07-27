@@ -2428,6 +2428,30 @@ void Assembler::vmerge_vi(VRegister vd, uint8_t imm5, VRegister vs2) {
   GenInstrV(VMV_FUNCT6, vd, imm5, vs2, Mask);
 }
 
+void Assembler::vadc_vv(VRegister vd, VRegister vs1, VRegister vs2) {
+  GenInstrV(VADC_FUNCT6, OP_IVV, vd, vs1, vs2, Mask);
+}
+
+void Assembler::vadc_vx(VRegister vd, Register rs1, VRegister vs2) {
+  GenInstrV(VADC_FUNCT6, OP_IVX, vd, rs1, vs2, Mask);
+}
+
+void Assembler::vadc_vi(VRegister vd, uint8_t imm5, VRegister vs2) {
+  GenInstrV(VADC_FUNCT6, vd, imm5, vs2, Mask);
+}
+
+void Assembler::vmadc_vv(VRegister vd, VRegister vs1, VRegister vs2) {
+  GenInstrV(VMADC_FUNCT6, OP_IVV, vd, vs1, vs2, Mask);
+}
+
+void Assembler::vmadc_vx(VRegister vd, Register rs1, VRegister vs2) {
+  GenInstrV(VMADC_FUNCT6, OP_IVX, vd, rs1, vs2, Mask);
+}
+
+void Assembler::vmadc_vi(VRegister vd, uint8_t imm5, VRegister vs2) {
+  GenInstrV(VMADC_FUNCT6, vd, imm5, vs2, Mask);
+}
+
 #define DEFINE_OPIVV(name, funct6)                                      \
   void Assembler::name##_vv(VRegister vd, VRegister vs2, VRegister vs1, \
                             MaskType mask) {                            \

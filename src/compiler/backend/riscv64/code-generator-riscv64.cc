@@ -2066,11 +2066,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvI32x4ExtractLane: {
-      (__ VU).set(kScratchReg, E32, m1);
-      if (i.InputInt8(1) != 0) {
-        __ vslidedown_vi(v31, i.InputSimd128Register(0), i.InputInt8(1));
-      }
-      __ vmv_xs(i.OutputRegister(), i.InputSimd128Register(0));
+      __ RvvExtractLane(i.OutputRegister(), i.InputSimd128Register(0),
+                        i.InputInt8(1), E32, m1);
       break;
     }
     default:

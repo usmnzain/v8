@@ -1967,6 +1967,20 @@ void Decoder::DecodeRvvIVV(Instruction* instr) {
         Format(instr, "vmerge.vvm   'vd, 'vs2, 'vs1, v0");
       }
       break;
+    case RO_V_VADC_VV:
+      if (!instr->RvvVM()) {
+        Format(instr, "vadc.vvm  'vd, 'vs2, 'vs1");
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    case RO_V_VMADC_VV:
+      if (!instr->RvvVM()) {
+        Format(instr, "vmadc.vvm 'vd, 'vs2, 'vs1");
+      } else {
+        UNREACHABLE();
+      }
+      break;
     default:
       UNSUPPORTED_RISCV();
       break;
@@ -2031,6 +2045,20 @@ void Decoder::DecodeRvvIVI(Instruction* instr) {
     case RO_V_VSLL_VI:
        Format(instr, "vsll.vi   'vd, 'vs2, 'uimm5'vm");
        break;
+    case RO_V_VADC_VI:
+      if (!instr->RvvVM()) {
+        Format(instr, "vadc.vim  'vd, 'vs2, 'uimm5");
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    case RO_V_VMADC_VI:
+      if (!instr->RvvVM()) {
+        Format(instr, "vmadc.vim 'vd, 'vs2, 'uimm5");
+      } else {
+        UNREACHABLE();
+      }
+      break;
     default:
       UNSUPPORTED_RISCV();
       break;
@@ -2112,6 +2140,20 @@ void Decoder::DecodeRvvIVX(Instruction* instr) {
       break;
     case RO_V_VSLIDEDOWN_VX:
       Format(instr, "vslidedown.vx 'vd, 'vs2, 'rs1'vm");
+      break;
+    case RO_V_VADC_VX:
+      if (!instr->RvvVM()) {
+        Format(instr, "vadc.vxm  'vd, 'vs2, 'rs1");
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    case RO_V_VMADC_VX:
+      if (!instr->RvvVM()) {
+        Format(instr, "vmadc.vxm 'vd, 'vs2, 'rs1");
+      } else {
+        UNREACHABLE();
+      }
       break;
     default:
       UNSUPPORTED_RISCV();

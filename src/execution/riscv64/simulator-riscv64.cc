@@ -3757,6 +3757,16 @@ void Simulator::DecodeRvvIVV() {
       RVV_VI_VV_ULOOP({ vd = vs2 <= vs1; })
       break;
     }
+    case RO_V_VADC_VV:
+      if (instr_.RvvVM()) {
+        RVV_VI_VV_LOOP_WITH_CARRY({
+          auto& v0 = Rvvelt<uint64_t>(0, midx);
+          vd = vs1 + vs2 + (v0 >> mpos) & 0x1;
+        })
+      } else {
+        UNREACHABLE();
+      }
+      break;
     default:
       // v8::base::EmbeddedVector<char, 256> buffer;
       // SNPrintF(trace_buf_, " ");
@@ -3893,6 +3903,17 @@ void Simulator::DecodeRvvIVI() {
       break;
     case RO_V_VSLL_VI:
       RVV_VI_VI_LOOP({ vd = vs2 << simm5; })
+      break;
+    case RO_V_VADC_VI:
+      if (instr_.RvvVM()) {
+        RVV_VI_XI_LOOP_WITH_CARRY({
+          auto& v0 = Rvvelt<uint64_t>(0, midx);
+          vd = simm5 + vs2 + (v0 >> mpos) & 0x1;
+          USE(rs1);
+        })
+      } else {
+        UNREACHABLE();
+      }
       break;
     default:
       UNIMPLEMENTED_RISCV();
@@ -4068,6 +4089,17 @@ void Simulator::DecodeRvvIVX() {
       break;
     case RO_V_VSLIDEDOWN_VX:
       UNIMPLEMENTED_RISCV();
+      break;
+    case RO_V_VADC_VX:
+      if (instr_.RvvVM()) {
+        RVV_VI_XI_LOOP_WITH_CARRY({
+          auto& v0 = Rvvelt<uint64_t>(0, midx);
+          vd = rs1 + vs2 + (v0 >> mpos) & 0x1;
+          USE(simm5);
+        })
+      } else {
+        UNREACHABLE();
+      }
       break;
     default:
       UNIMPLEMENTED_RISCV();
