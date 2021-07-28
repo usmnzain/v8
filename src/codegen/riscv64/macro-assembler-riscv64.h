@@ -913,9 +913,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                  Vlmul lmul);
 
   void WasmRvvNe(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
-                 Vlmul lmul);  
-  void WasmRvvGes(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
-                 Vlmul lmul);                
+                 Vlmul lmul);
+  void WasmRvvGeS(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
+                  Vlmul lmul);
+  void WasmRvvGeU(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
+                  Vlmul lmul);
+
  protected:
   inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
   inline int32_t GetOffset(int32_t offset, Label* L, OffsetSize bits);

@@ -3762,10 +3762,19 @@ void TurboAssembler::WasmRvvNe(VRegister dst, VRegister lhs, VRegister rhs,
   vmerge_vx(dst, kScratchReg, dst);
 }
 
-void TurboAssembler::WasmRvvGes(VRegister dst, VRegister lhs, VRegister rhs,
+void TurboAssembler::WasmRvvGeS(VRegister dst, VRegister lhs, VRegister rhs,
                                 VSew sew, Vlmul lmul) {
   VU.set(kScratchReg, sew, lmul);
   vmsle_vv(v0, rhs, lhs);
+  li(kScratchReg, -1);
+  vmv_vx(dst, zero_reg);
+  vmerge_vx(dst, kScratchReg, dst);
+}
+
+void TurboAssembler::WasmRvvGeU(VRegister dst, VRegister lhs, VRegister rhs,
+                                VSew sew, Vlmul lmul) {
+  VU.set(kScratchReg, sew, lmul);
+  vmsleu_vv(v0, rhs, lhs);
   li(kScratchReg, -1);
   vmv_vx(dst, zero_reg);
   vmerge_vx(dst, kScratchReg, dst);
