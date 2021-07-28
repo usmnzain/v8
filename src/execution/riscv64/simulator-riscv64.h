@@ -132,8 +132,11 @@ union u32_f32 {
 inline float fsgnj32(float rs1, float rs2, bool n, bool x) {
   u32_f32 a = {.f = rs1}, b = {.f = rs2};
   u32_f32 res;
-  res.u =
-      (a.u & ~F32_SIGN) | ((((x) ? a.u : (n) ? F32_SIGN : 0) ^ b.u) & F32_SIGN);
+  res.u = (a.u & ~F32_SIGN) | ((((x)   ? a.u
+                                 : (n) ? F32_SIGN
+                                       : 0) ^
+                                b.u) &
+                               F32_SIGN);
   return res.f;
 }
 #define F64_SIGN ((uint64_t)1 << 63)
@@ -144,8 +147,11 @@ union u64_f64 {
 inline double fsgnj64(double rs1, double rs2, bool n, bool x) {
   u64_f64 a = {.d = rs1}, b = {.d = rs2};
   u64_f64 res;
-  res.u =
-      (a.u & ~F64_SIGN) | ((((x) ? a.u : (n) ? F64_SIGN : 0) ^ b.u) & F64_SIGN);
+  res.u = (a.u & ~F64_SIGN) | ((((x)   ? a.u
+                                 : (n) ? F64_SIGN
+                                       : 0) ^
+                                b.u) &
+                               F64_SIGN);
   return res.d;
 }
 
@@ -865,23 +871,23 @@ class Simulator : public SimulatorBase {
   RVV_VI_LOOP_END                  \
   rvv_trace_vd();
 
-#define RVV_VI_VV_ULOOP(BODY)       \
+#define RVV_VI_VV_ULOOP(BODY)      \
   RVV_VI_GENERAL_LOOP_BASE         \
   RVV_VI_LOOP_MASK_SKIP()          \
   if (rvv_vsew() == E8) {          \
-    VV_UPARAMS(8);                  \
+    VV_UPARAMS(8);                 \
     BODY                           \
   } else if (rvv_vsew() == E16) {  \
-    VV_UPARAMS(16);                 \
+    VV_UPARAMS(16);                \
     BODY                           \
   } else if (rvv_vsew() == E32) {  \
-    VV_UPARAMS(32);                 \
+    VV_UPARAMS(32);                \
     BODY                           \
   } else if (rvv_vsew() == E64) {  \
-    VV_UPARAMS(64);                 \
+    VV_UPARAMS(64);                \
     BODY                           \
   } else if (rvv_vsew() == E128) { \
-    VV_UPARAMS(128);                \
+    VV_UPARAMS(128);               \
     BODY                           \
   } else {                         \
     UNREACHABLE();                 \
@@ -1056,6 +1062,147 @@ class Simulator : public SimulatorBase {
     BODY;                               \
   }                                     \
   RVV_VI_LOOP_END
+
+#define VV_CMP_PARAMS(x)                                                   \
+  type_sew_t<x>::type vs1 = Rvvelt<type_sew_t<x>::type>(rvv_vs1_reg(), i); \
+  type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);
+
+#define VX_CMP_PARAMS(x)                                                    \
+  type_sew_t<x>::type rs1 = (type_sew_t<x>::type)(get_register(rs1_reg())); \
+  type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);
+
+#define VI_CMP_PARAMS(x)                                              \
+  type_sew_t<x>::type simm5 = (type_sew_t<x>::type)instr_.RvvSimm5(); \
+  type_sew_t<x>::type vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);
+
+#define VV_UCMP_PARAMS(x)                                                    \
+  type_usew_t<x>::type vs1 = Rvvelt<type_usew_t<x>::type>(rvv_vs1_reg(), i); \
+  type_usew_t<x>::type vs2 = Rvvelt<type_usew_t<x>::type>(rvv_vs2_reg(), i);
+
+#define VX_UCMP_PARAMS(x)                                 \
+  type_usew_t<x>::type rs1 =                              \
+      (type_sew_t<x>::type)(get_register(rvv_vs1_reg())); \
+  type_usew_t<x>::type vs2 = Rvvelt<type_usew_t<x>::type>(rvv_vs2_reg(), i);
+
+#define VI_UCMP_PARAMS(x)                                             \
+  type_usew_t<x>::type uimm5 = (type_usew_t<x>::type)instr_.RvvUimm5(); \
+  type_usew_t<x>::type vs2 = Rvvelt<type_usew_t<x>::type>(rvv_vs2_reg(), i);
+
+#define RVV_VI_LOOP_CMP_BASE                                    \
+  CHECK(rvv_vsew() >= E8 && rvv_vsew() <= E64);                 \
+  for (reg_t i = rvv_vstart(); i < rvv_vl(); ++i) {             \
+    RVV_VI_LOOP_MASK_SKIP();                                    \
+    uint64_t mmask = uint64_t(1) << mpos;                       \
+    uint64_t& vdi = Rvvelt<uint64_t>(rvv_vd_reg(), midx, true); \
+    uint64_t res = 0;
+
+#define RVV_VI_LOOP_CMP_END                         \
+  vdi = (vdi & ~mmask) | (((res) << mpos) & mmask); \
+  }                                                 \
+  set_rvv_vstart(0);
+
+// comparision result to masking register
+#define RVV_VI_VV_LOOP_CMP(BODY)  \
+  RVV_VI_LOOP_CMP_BASE            \
+  if (rvv_vsew() == E8) {         \
+    VV_CMP_PARAMS(8);             \
+    BODY;                         \
+  } else if (rvv_vsew() == E16) { \
+    VV_CMP_PARAMS(16);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E32) { \
+    VV_CMP_PARAMS(32);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E64) { \
+    VV_CMP_PARAMS(64);            \
+    BODY;                         \
+  }                               \
+  RVV_VI_LOOP_CMP_END
+
+#define RVV_VI_VX_LOOP_CMP(BODY)  \
+  RVV_VI_LOOP_CMP_BASE            \
+  if (rvv_vsew() == E8) {         \
+    VX_CMP_PARAMS(8);             \
+    BODY;                         \
+  } else if (rvv_vsew() == E16) { \
+    VX_CMP_PARAMS(16);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E32) { \
+    VX_CMP_PARAMS(32);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E64) { \
+    VX_CMP_PARAMS(64);            \
+    BODY;                         \
+  }                               \
+  RVV_VI_LOOP_CMP_END
+
+#define RVV_VI_VI_LOOP_CMP(BODY)  \
+  RVV_VI_LOOP_CMP_BASE            \
+  if (rvv_vsew() == E8) {         \
+    VI_CMP_PARAMS(8);             \
+    BODY;                         \
+  } else if (rvv_vsew() == E16) { \
+    VI_CMP_PARAMS(16);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E32) { \
+    VI_CMP_PARAMS(32);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E64) { \
+    VI_CMP_PARAMS(64);            \
+    BODY;                         \
+  }                               \
+  RVV_VI_LOOP_CMP_END
+
+#define RVV_VI_VV_ULOOP_CMP(BODY) \
+  RVV_VI_LOOP_CMP_BASE \
+  if (rvv_vsew() == E8){ \
+    VV_UCMP_PARAMS(8); \
+    BODY; \
+  }else if(rvv_vsew() == E16){ \
+    VV_UCMP_PARAMS(16); \
+    BODY; \
+  }else if(rvv_vsew() == E32){ \
+    VV_UCMP_PARAMS(32); \
+    BODY; \
+  }else if(rvv_vsew() == E64){ \
+    VV_UCMP_PARAMS(64); \
+    BODY; \
+  } \
+  RVV_VI_LOOP_CMP_END
+
+#define RVV_VI_VX_ULOOP_CMP(BODY) \
+  RVV_VI_LOOP_CMP_BASE \
+  if (rvv_vsew() == E8){ \
+    VX_UCMP_PARAMS(8); \
+    BODY; \
+  }else if(rvv_vsew() == E16){ \
+    VX_UCMP_PARAMS(16); \
+    BODY; \
+  }else if(rvv_vsew() == E32){ \
+    VX_UCMP_PARAMS(32); \
+    BODY; \
+  }else if(rvv_vsew() == E64){ \
+    VX_UCMP_PARAMS(64); \
+    BODY; \
+  } \
+  RVV_VI_LOOP_CMP_END
+
+#define RVV_VI_VI_ULOOP_CMP(BODY) \
+  RVV_VI_LOOP_CMP_BASE \
+  if (rvv_vsew() == E8){ \
+    VI_UCMP_PARAMS(8); \
+    BODY; \
+  }else if(rvv_vsew() == E16){ \
+    VI_UCMP_PARAMS(16); \
+    BODY; \
+  }else if(rvv_vsew() == E32){ \
+    VI_UCMP_PARAMS(32); \
+    BODY; \
+  }else if(rvv_vsew() == E64){ \
+    VI_UCMP_PARAMS(64); \
+    BODY; \
+  } \
+  RVV_VI_LOOP_CMP_END
 
 #define VI_STRIP(inx) reg_t vreg_inx = inx;
 

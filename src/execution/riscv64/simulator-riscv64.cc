@@ -3734,27 +3734,27 @@ void Simulator::DecodeRvvIVV() {
       break;
     }
     case RO_V_VMSEQ_VV: {
-      RVV_VI_VV_LOOP({ vd = vs1 == vs2; })
+      RVV_VI_VV_LOOP_CMP({ res = vs1 == vs2; })
       break;
     }
     case RO_V_VMSNE_VV: {
-      RVV_VI_VV_LOOP({ vd = vs1 != vs2; })
+      RVV_VI_VV_LOOP_CMP({ res = vs1 != vs2; })
       break;
     }
     case RO_V_VMSLTU_VV: {
-      RVV_VI_VV_ULOOP({ vd = vs2 < vs1; })
+      RVV_VI_VV_ULOOP_CMP({ res = vs2 < vs1; })
       break;
     }
     case RO_V_VMSLT_VV: {
-      RVV_VI_VV_LOOP({ vd = vs2 < vs1; })
+      RVV_VI_VV_LOOP_CMP({ res = vs2 < vs1; })
       break;
     }
     case RO_V_VMSLE_VV: {
-      RVV_VI_VV_LOOP({ vd = vs2 <= vs1; })
+      RVV_VI_VV_LOOP_CMP({ res = vs2 <= vs1; })
       break;
     }
     case RO_V_VMSLEU_VV: {
-      RVV_VI_VV_ULOOP({ vd = vs2 <= vs1; })
+      RVV_VI_VV_ULOOP_CMP({ res = vs2 <= vs1; })
       break;
     }
     case RO_V_VADC_VV:
@@ -3853,19 +3853,19 @@ void Simulator::DecodeRvvIVI() {
       }
       break;
     case RO_V_VMSEQ_VI:
-      RVV_VI_VI_LOOP({ vd = simm5 == vs2; })
+      RVV_VI_VI_LOOP_CMP({ res = simm5 == vs2; })
       break;
     case RO_V_VMSNE_VI:
-      RVV_VI_VI_LOOP({ vd = simm5 != vs2; })
+      RVV_VI_VI_LOOP_CMP({ res = simm5 != vs2; })
       break;
     case RO_V_VMSLEU_VI:
-      RVV_VI_VI_ULOOP({ vd = vs2 <= uimm5; })
+      RVV_VI_VI_ULOOP_CMP({ res = vs2 <= uimm5; })
       break;
     case RO_V_VMSLE_VI:
-      RVV_VI_VI_LOOP({ vd = vs2 <= simm5; })
+      RVV_VI_VI_LOOP_CMP({ res = vs2 <= simm5; })
       break;
     case RO_V_VMSGT_VI:
-      RVV_VI_VI_LOOP({ vd = vs2 > simm5; })
+      RVV_VI_VI_LOOP_CMP({ res = vs2 > simm5; })
       break;
     case RO_V_VSLIDEDOWN_VI: {
       const uint8_t sh = instr_.RvvUimm5();
@@ -4064,28 +4064,28 @@ void Simulator::DecodeRvvIVX() {
       }
       break;
     case RO_V_VMSEQ_VX:
-      RVV_VI_VX_LOOP({ vd = rs1 == vs2; })
+      RVV_VI_VX_LOOP_CMP({ res = vs2 == rs1; })
       break;
     case RO_V_VMSNE_VX:
-      RVV_VI_VX_LOOP({ vd = rs1 != vs2; })
+      RVV_VI_VX_LOOP_CMP({ res = vs2 != rs1; })
       break;
     case RO_V_VMSLT_VX:
-      RVV_VI_VX_LOOP({ vd = vs2 < rs1; })
+      RVV_VI_VX_LOOP_CMP({ res = vs2 < rs1; })
       break;
     case RO_V_VMSLTU_VX:
-      RVV_VI_VX_ULOOP({ vd = vs2 < rs1; })
+      RVV_VI_VX_ULOOP_CMP({ res = vs2 < rs1; })
       break;
     case RO_V_VMSLE_VX:
-      RVV_VI_VX_LOOP({ vd = vs2 <= rs1; })
+      RVV_VI_VX_LOOP_CMP({ res = vs2 <= rs1; })
       break;
     case RO_V_VMSLEU_VX:
-      RVV_VI_VX_ULOOP({ vd = vs2 <= rs1; })
+      RVV_VI_VX_ULOOP_CMP({ res = vs2 <= rs1; })
       break;
     case RO_V_VMSGT_VX:
-      RVV_VI_VX_LOOP({ vd = vs2 > rs1; })
+      RVV_VI_VX_LOOP_CMP({ res = vs2 > rs1; })
       break;
     case RO_V_VMSGTU_VX:
-      RVV_VI_VX_ULOOP({ vd = vs2 > rs1; })
+      RVV_VI_VX_ULOOP_CMP({ res = vs2 > rs1; })
       break;
     case RO_V_VSLIDEDOWN_VX:
       UNIMPLEMENTED_RISCV();
