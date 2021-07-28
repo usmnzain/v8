@@ -132,11 +132,8 @@ union u32_f32 {
 inline float fsgnj32(float rs1, float rs2, bool n, bool x) {
   u32_f32 a = {.f = rs1}, b = {.f = rs2};
   u32_f32 res;
-  res.u = (a.u & ~F32_SIGN) | ((((x)   ? a.u
-                                 : (n) ? F32_SIGN
-                                       : 0) ^
-                                b.u) &
-                               F32_SIGN);
+  res.u =
+      (a.u & ~F32_SIGN) | ((((x) ? a.u : (n) ? F32_SIGN : 0) ^ b.u) & F32_SIGN);
   return res.f;
 }
 #define F64_SIGN ((uint64_t)1 << 63)
@@ -147,11 +144,8 @@ union u64_f64 {
 inline double fsgnj64(double rs1, double rs2, bool n, bool x) {
   u64_f64 a = {.d = rs1}, b = {.d = rs2};
   u64_f64 res;
-  res.u = (a.u & ~F64_SIGN) | ((((x)   ? a.u
-                                 : (n) ? F64_SIGN
-                                       : 0) ^
-                                b.u) &
-                               F64_SIGN);
+  res.u =
+      (a.u & ~F64_SIGN) | ((((x) ? a.u : (n) ? F64_SIGN : 0) ^ b.u) & F64_SIGN);
   return res.d;
 }
 
@@ -1084,7 +1078,7 @@ class Simulator : public SimulatorBase {
       (type_sew_t<x>::type)(get_register(rvv_vs1_reg())); \
   type_usew_t<x>::type vs2 = Rvvelt<type_usew_t<x>::type>(rvv_vs2_reg(), i);
 
-#define VI_UCMP_PARAMS(x)                                             \
+#define VI_UCMP_PARAMS(x)                                               \
   type_usew_t<x>::type uimm5 = (type_usew_t<x>::type)instr_.RvvUimm5(); \
   type_usew_t<x>::type vs2 = Rvvelt<type_usew_t<x>::type>(rvv_vs2_reg(), i);
 
@@ -1154,54 +1148,54 @@ class Simulator : public SimulatorBase {
   RVV_VI_LOOP_CMP_END
 
 #define RVV_VI_VV_ULOOP_CMP(BODY) \
-  RVV_VI_LOOP_CMP_BASE \
-  if (rvv_vsew() == E8){ \
-    VV_UCMP_PARAMS(8); \
-    BODY; \
-  }else if(rvv_vsew() == E16){ \
-    VV_UCMP_PARAMS(16); \
-    BODY; \
-  }else if(rvv_vsew() == E32){ \
-    VV_UCMP_PARAMS(32); \
-    BODY; \
-  }else if(rvv_vsew() == E64){ \
-    VV_UCMP_PARAMS(64); \
-    BODY; \
-  } \
+  RVV_VI_LOOP_CMP_BASE            \
+  if (rvv_vsew() == E8) {         \
+    VV_UCMP_PARAMS(8);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E16) { \
+    VV_UCMP_PARAMS(16);           \
+    BODY;                         \
+  } else if (rvv_vsew() == E32) { \
+    VV_UCMP_PARAMS(32);           \
+    BODY;                         \
+  } else if (rvv_vsew() == E64) { \
+    VV_UCMP_PARAMS(64);           \
+    BODY;                         \
+  }                               \
   RVV_VI_LOOP_CMP_END
 
 #define RVV_VI_VX_ULOOP_CMP(BODY) \
-  RVV_VI_LOOP_CMP_BASE \
-  if (rvv_vsew() == E8){ \
-    VX_UCMP_PARAMS(8); \
-    BODY; \
-  }else if(rvv_vsew() == E16){ \
-    VX_UCMP_PARAMS(16); \
-    BODY; \
-  }else if(rvv_vsew() == E32){ \
-    VX_UCMP_PARAMS(32); \
-    BODY; \
-  }else if(rvv_vsew() == E64){ \
-    VX_UCMP_PARAMS(64); \
-    BODY; \
-  } \
+  RVV_VI_LOOP_CMP_BASE            \
+  if (rvv_vsew() == E8) {         \
+    VX_UCMP_PARAMS(8);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E16) { \
+    VX_UCMP_PARAMS(16);           \
+    BODY;                         \
+  } else if (rvv_vsew() == E32) { \
+    VX_UCMP_PARAMS(32);           \
+    BODY;                         \
+  } else if (rvv_vsew() == E64) { \
+    VX_UCMP_PARAMS(64);           \
+    BODY;                         \
+  }                               \
   RVV_VI_LOOP_CMP_END
 
 #define RVV_VI_VI_ULOOP_CMP(BODY) \
-  RVV_VI_LOOP_CMP_BASE \
-  if (rvv_vsew() == E8){ \
-    VI_UCMP_PARAMS(8); \
-    BODY; \
-  }else if(rvv_vsew() == E16){ \
-    VI_UCMP_PARAMS(16); \
-    BODY; \
-  }else if(rvv_vsew() == E32){ \
-    VI_UCMP_PARAMS(32); \
-    BODY; \
-  }else if(rvv_vsew() == E64){ \
-    VI_UCMP_PARAMS(64); \
-    BODY; \
-  } \
+  RVV_VI_LOOP_CMP_BASE            \
+  if (rvv_vsew() == E8) {         \
+    VI_UCMP_PARAMS(8);            \
+    BODY;                         \
+  } else if (rvv_vsew() == E16) { \
+    VI_UCMP_PARAMS(16);           \
+    BODY;                         \
+  } else if (rvv_vsew() == E32) { \
+    VI_UCMP_PARAMS(32);           \
+    BODY;                         \
+  } else if (rvv_vsew() == E64) { \
+    VI_UCMP_PARAMS(64);           \
+    BODY;                         \
+  }                               \
   RVV_VI_LOOP_CMP_END
 
 #define VI_STRIP(inx) reg_t vreg_inx = inx;
