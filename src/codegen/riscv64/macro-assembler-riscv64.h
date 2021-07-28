@@ -898,10 +898,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       Sub64(rd, rs1, rs2);
     }
   }
-
-  // RVV
-  void RvvExtractLane(Register dst, VRegister src, int8_t idx, VSew sew,
-                      Vlmul lmul) {
+    // Wasm into RVV
+  void WasmRvvExtractLane(Register dst, VRegister src, int8_t idx, VSew sew,
+                          Vlmul lmul) {
     VU.set(kScratchReg, sew, lmul);
     VRegister Vsrc = idx != 0 ? kSimd128ScratchReg : src;
     if (idx != 0) {
@@ -910,6 +909,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     vmv_xs(dst, Vsrc);
   }
 
+  void WasmRvvEq(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
+                 Vlmul lmul);
+
+  void WasmRvvNe(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
+                 Vlmul lmul);                
  protected:
   inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
   inline int32_t GetOffset(int32_t offset, Label* L, OffsetSize bits);

@@ -2066,12 +2066,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvI32x4ExtractLane: {
-      __ RvvExtractLane(i.OutputRegister(), i.InputSimd128Register(0),
+      __ WasmRvvExtractLane(i.OutputRegister(), i.InputSimd128Register(0),
                         i.InputInt8(1), E32, m1);
       break;
     }
+    case kRiscvI8x16Splat: {
+      (__ VU).set(kScratchReg, E8, m1);
+      __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
+      break;    
+    }
+    case kRiscvI16x8Splat: {
+      (__ VU).set(kScratchReg, E16, m1);
+      __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
+      break;    
+    }
     case kRiscvI32x4Splat: {
       (__ VU).set(kScratchReg, E32, m1);
+      __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
+      break;   
+    }
+    case kRiscvI64x2Splat: {
+      (__ VU).set(kScratchReg, E64, m1);
       __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
       break;   
     }
@@ -2082,6 +2097,46 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmslt_vv(v0, i.InputSimd128Register(0), kSimd128RegZero);
       __ vsub_vv(i.OutputSimd128Register(), kSimd128RegZero,
                  i.InputSimd128Register(0), Mask);
+      break;
+    }
+    case kRiscvI8x16Eq: {
+      __ WasmRvvEq(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), E8, m1);
+      break;
+    }
+    case kRiscvI16x8Eq: {
+      __ WasmRvvEq(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), E16, m1);
+      break;
+    }
+    case kRiscvI32x4Eq: {
+      __ WasmRvvEq(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), E32, m1);
+      break;
+    }
+    case kRiscvI64x2Eq: {
+      __ WasmRvvEq(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), E64, m1);
+      break;
+    }
+    case kRiscvI8x16Ne: {
+      __ WasmRvvNe(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), E8, m1);
+      break;
+    }
+    case kRiscvI16x8Ne: {
+      __ WasmRvvNe(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), E16, m1);
+      break;
+    }
+    case kRiscvI32x4Ne: {
+      __ WasmRvvNe(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), E32, m1);
+      break;
+    }
+    case kRiscvI64x2Ne: {
+      __ WasmRvvNe(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputSimd128Register(1), E64, m1);
       break;
     }
     default:

@@ -1964,7 +1964,7 @@ void Decoder::DecodeRvvIVV(Instruction* instr) {
       if (instr->RvvVM()) {
         Format(instr, "vmv.vv    'vd, 'vs1");
       } else {
-        Format(instr, "vmerge.vvm   'vd, 'vs2, 'vs1, v0");
+        Format(instr, "vmerge.vvm 'vd, 'vs2, 'vs1, v0");
       }
       break;
     case RO_V_VADC_VV:

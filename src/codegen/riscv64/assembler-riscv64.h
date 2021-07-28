@@ -1135,7 +1135,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       if (sew != sew_ || lmul != lmul_ || vl != vlmax()) {
         sew_ = sew;
         lmul_ = lmul;
+        vl = vlmax();
         assm_->vsetvlmax(rd, sew_, lmul_);
+      }
+    }
+
+    void set(Register rd, Register rs1 ,VSew sew, Vlmul lmul) {
+      if (sew != sew_ || lmul != lmul_) {
+        sew_ = sew;
+        lmul_ = lmul;
+        vl = 0;
+        assm_->vsetvli(rd, rs1, sew_, lmul_);
       }
     }
 

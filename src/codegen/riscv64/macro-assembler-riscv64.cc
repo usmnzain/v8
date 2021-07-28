@@ -3742,7 +3742,25 @@ void MacroAssembler::GetInstanceTypeRange(Register map, Register type_reg,
   Lhu(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
   Sub64(range, type_reg, Operand(lower_limit));
 }
+//------------------------------------------------------------------------------
+//Wasm
+void TurboAssembler::WasmRvvEq(VRegister dst, VRegister lhs, VRegister rhs,
+                               VSew sew, Vlmul lmul) {
+  VU.set(kScratchReg, sew, lmul);
+  vmseq_vv(v0, lhs, rhs);
+  li(kScratchReg, -1);
+  vmv_vx(dst, zero_reg);
+  vmerge_vx(dst, kScratchReg, dst);
+}
 
+void TurboAssembler::WasmRvvNe(VRegister dst, VRegister lhs, VRegister rhs,
+                               VSew sew, Vlmul lmul) {
+  VU.set(kScratchReg, sew, lmul);
+  vmsne_vv(v0, lhs, rhs);
+  li(kScratchReg, -1);
+  vmv_vx(dst, zero_reg);
+  vmerge_vx(dst, kScratchReg, dst);
+}
 // -----------------------------------------------------------------------------
 // Runtime calls.
 

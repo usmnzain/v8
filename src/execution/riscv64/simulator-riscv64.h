@@ -1111,7 +1111,8 @@ class Simulator : public SimulatorBase {
     VV_CMP_PARAMS(64);            \
     BODY;                         \
   }                               \
-  RVV_VI_LOOP_CMP_END
+  RVV_VI_LOOP_CMP_END             \
+  rvv_trace_vd();
 
 #define RVV_VI_VX_LOOP_CMP(BODY)  \
   RVV_VI_LOOP_CMP_BASE            \
