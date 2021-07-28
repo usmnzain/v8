@@ -499,13 +499,15 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kF64Load:
       TurboAssembler::ULoadDouble(dst.fp(), src_op);
       break;
-    case LoadType::kS128Load:
+    case LoadType::kS128Load: {
+      VU.set(kScratchReg, E8, m1);
+      Register src_reg = src_op.offset() == 0 ? src_op.rm() : kScratchReg;
       if (src_op.offset() != 0) {
-        Add64(src_op.rm(), src_op.rm(), src_op.offset());
+        TurboAssembler::Add64(src_reg, src_op.rm(), src_op.offset());
       }
-      VU.set(kScratchReg, VSew::E8, Vlmul::m1);
-      vl(dst.fp().toV(), src_op.rm(), 0, VSew::E8);
+      vl(dst.fp().toV(), src_reg, 0, E8);
       break;
+    }
     default:
       UNREACHABLE();
   }
@@ -561,12 +563,15 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     case StoreType::kF64Store:
       TurboAssembler::UStoreDouble(src.fp(), dst_op);
       break;
-    case StoreType::kS128Store:
+    case StoreType::kS128Store: {
+      VU.set(kScratchReg, E8, m1);
+      Register dst_reg = dst_op.offset() == 0 ? dst_op.rm() : kScratchReg;
       if (dst_op.offset() != 0) {
-        Add64(dst_op.rm(), dst_op.rm(), dst_op.offset());
+        Add64(kScratchReg, dst_op.rm(), dst_op.offset());
       }
-      vs(src.fp().toV(), dst_op.rm(), 0, VSew::E8);
+      vs(src.fp().toV(), dst_reg, 0, VSew::E8);
       break;
+    }
     default:
       UNREACHABLE();
   }
@@ -930,11 +935,15 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
     case kF64:
       TurboAssembler::StoreDouble(reg.fp(), dst);
       break;
-    case kS128:
-      VU.set(VSew::E8, Vlmul::m1);
-      Add64(kScratchReg, dst.rm(), dst.offset());
-      vs(reg.fp().toV(), dst.rm(), 0, VSew::E8);
+    case kS128: {
+      VU.set(kScratchReg, E8, m1);
+      Register dst_reg = dst.offset() == 0 ? dst.rm() : kScratchReg;
+      if (dst.offset() != 0) {
+        Add64(kScratchReg, dst.rm(), dst.offset());
+      }
+      vs(reg.fp().toV(), dst_reg, 0, VSew::E8);
       break;
+    }
     default:
       UNREACHABLE();
   }
@@ -983,6 +992,7 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueKind kind) {
       TurboAssembler::LoadDouble(reg.fp(), src);
       break;
     case kS128: {
+      VU.set(kScratchReg, E8, m1);
       Register src_reg = src.offset() == 0 ? src.rm() : kScratchReg;
       if (src.offset() != 0) {
         TurboAssembler::Add64(src_reg, src.rm(), src.offset());

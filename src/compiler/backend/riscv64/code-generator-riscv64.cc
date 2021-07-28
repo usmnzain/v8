@@ -2070,6 +2070,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                         i.InputInt8(1), E32, m1);
       break;
     }
+    case kRiscvI32x4Splat: {
+      (__ VU).set(kScratchReg, E32, m1);
+      __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
+      break;   
+    }
     default:
 #ifdef DEBUG
       switch (arch_opcode) {
