@@ -913,6 +913,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                  Vlmul lmul);
 
   void WasmRvvNe(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
+                 Vlmul lmul);  
+  void WasmRvvGes(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
                  Vlmul lmul);                
  protected:
   inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);

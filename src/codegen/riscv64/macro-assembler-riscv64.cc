@@ -3761,6 +3761,15 @@ void TurboAssembler::WasmRvvNe(VRegister dst, VRegister lhs, VRegister rhs,
   vmv_vx(dst, zero_reg);
   vmerge_vx(dst, kScratchReg, dst);
 }
+
+void TurboAssembler::WasmRvvGes(VRegister dst, VRegister lhs, VRegister rhs,
+                                VSew sew, Vlmul lmul) {
+  VU.set(kScratchReg, sew, lmul);
+  vmsle_vv(v0, rhs, lhs);
+  li(kScratchReg, -1);
+  vmv_vx(dst, zero_reg);
+  vmerge_vx(dst, kScratchReg, dst);
+}
 // -----------------------------------------------------------------------------
 // Runtime calls.
 
