@@ -918,6 +918,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                   Vlmul lmul);
   void WasmRvvGeU(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
                   Vlmul lmul);
+  void WasmRvvGtS(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
+                  Vlmul lmul);
+  void WasmRvvGtU(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
+                  Vlmul lmul);
 
  protected:
   inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
