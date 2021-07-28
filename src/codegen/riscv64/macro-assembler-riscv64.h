@@ -898,7 +898,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       Sub64(rd, rs1, rs2);
     }
   }
-    // Wasm into RVV
+  // Wasm into RVV
   void WasmRvvExtractLane(Register dst, VRegister src, int8_t idx, VSew sew,
                           Vlmul lmul) {
     VU.set(kScratchReg, sew, lmul);

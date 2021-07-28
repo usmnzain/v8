@@ -3767,6 +3767,10 @@ void Simulator::DecodeRvvIVV() {
         UNREACHABLE();
       }
       break;
+    case RO_V_VSLL_VV: {
+      RVV_VI_VV_LOOP({ vd = vs2 << vs1; })
+      break;
+    }
     default:
       // v8::base::EmbeddedVector<char, 256> buffer;
       // SNPrintF(trace_buf_, " ");
@@ -4101,6 +4105,10 @@ void Simulator::DecodeRvvIVX() {
         UNREACHABLE();
       }
       break;
+    case RO_V_VSLL_VX: {
+      RVV_VI_VX_LOOP({ vd = vs2 << rs1; })
+      break;
+    }
     default:
       UNIMPLEMENTED_RISCV();
       break;

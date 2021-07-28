@@ -336,7 +336,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
 #define ASSEMBLE_ATOMIC_BINOP(load_linked, store_conditional, bin_instr)       \
   do {                                                                         \
     Label binop;                                                               \
-    __ Add64(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    __ Add64(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     __ sync();                                                                 \
     __ bind(&binop);                                                           \
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));     \
@@ -351,7 +351,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
                                   size, bin_instr, representation)             \
   do {                                                                         \
     Label binop;                                                               \
-    __ Add64(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    __ Add64(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     if (representation == 32) {                                                \
       __ And(i.TempRegister(3), i.TempRegister(0), 0x3);                       \
     } else {                                                                   \
@@ -380,7 +380,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     Label exchange;                                                            \
     __ sync();                                                                 \
     __ bind(&exchange);                                                        \
-    __ Add64(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    __ Add64(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));     \
     __ Move(i.TempRegister(1), i.InputRegister(2));                            \
     __ store_conditional(i.TempRegister(1), MemOperand(i.TempRegister(0), 0)); \
@@ -392,7 +392,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     load_linked, store_conditional, sign_extend, size, representation)         \
   do {                                                                         \
     Label exchange;                                                            \
-    __ Add64(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    __ Add64(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     if (representation == 32) {                                                \
       __ And(i.TempRegister(1), i.TempRegister(0), 0x3);                       \
     } else {                                                                   \
@@ -419,7 +419,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
   do {                                                                         \
     Label compareExchange;                                                     \
     Label exit;                                                                \
-    __ Add64(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    __ Add64(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     __ sync();                                                                 \
     __ bind(&compareExchange);                                                 \
     __ load_linked(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));     \
@@ -438,7 +438,7 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
   do {                                                                         \
     Label compareExchange;                                                     \
     Label exit;                                                                \
-    __ Add64(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    __ Add64(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     if (representation == 32) {                                                \
       __ And(i.TempRegister(1), i.TempRegister(0), 0x3);                       \
     } else {                                                                   \
@@ -1103,8 +1103,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     } break;
     case kRiscvShl32:
       if (instr->InputAt(1)->IsRegister()) {
-        __ Sll32(i.OutputRegister(), i.InputRegister(0),
-                 i.InputRegister(1));
+        __ Sll32(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         int64_t imm = i.InputOperand(1).immediate();
         __ Sll32(i.OutputRegister(), i.InputRegister(0),
@@ -1113,8 +1112,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kRiscvShr32:
       if (instr->InputAt(1)->IsRegister()) {
-        __ Srl32(i.OutputRegister(), i.InputRegister(0),
-                 i.InputRegister(1));
+        __ Srl32(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         int64_t imm = i.InputOperand(1).immediate();
         __ Srl32(i.OutputRegister(), i.InputRegister(0),
@@ -1123,8 +1121,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kRiscvSar32:
       if (instr->InputAt(1)->IsRegister()) {
-        __ Sra32(i.OutputRegister(), i.InputRegister(0),
-                 i.InputRegister(1));
+        __ Sra32(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       } else {
         int64_t imm = i.InputOperand(1).immediate();
         __ Sra32(i.OutputRegister(), i.InputRegister(0),
@@ -1966,7 +1963,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI16x8AddSatU: {
       (__ VU).set(kScratchReg, VSew::E16, Vlmul::m1);
       __ vsaddu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1));
+                   i.InputSimd128Register(1));
       break;
     }
     case kRiscvI8x16Add: {
@@ -1984,7 +1981,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI8x16AddSatU: {
       (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
       __ vsaddu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                  i.InputSimd128Register(1));
+                   i.InputSimd128Register(1));
       break;
     }
     case kRiscvI64x2Sub: {
@@ -2008,13 +2005,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI16x8SubSatS: {
       (__ VU).set(kScratchReg, VSew::E16, Vlmul::m1);
       __ vssub_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
+                  i.InputSimd128Register(1));
       break;
     }
     case kRiscvI16x8SubSatU: {
       (__ VU).set(kScratchReg, VSew::E16, Vlmul::m1);
       __ vssubu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
+                   i.InputSimd128Register(1));
       break;
     }
     case kRiscvI8x16Sub: {
@@ -2026,13 +2023,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI8x16SubSatS: {
       (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
       __ vssub_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
+                  i.InputSimd128Register(1));
       break;
     }
     case kRiscvI8x16SubSatU: {
       (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
       __ vssubu_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
+                   i.InputSimd128Register(1));
       break;
     }
     case kRiscvS128And: {
@@ -2044,7 +2041,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvS128Or: {
       (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);
       __ vor_vv(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
+                i.InputSimd128Register(1));
       break;
     }
     case kRiscvS128Xor: {
@@ -2067,28 +2064,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvI32x4ExtractLane: {
       __ WasmRvvExtractLane(i.OutputRegister(), i.InputSimd128Register(0),
-                        i.InputInt8(1), E32, m1);
+                            i.InputInt8(1), E32, m1);
       break;
     }
     case kRiscvI8x16Splat: {
       (__ VU).set(kScratchReg, E8, m1);
       __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
-      break;    
+      break;
     }
     case kRiscvI16x8Splat: {
       (__ VU).set(kScratchReg, E16, m1);
       __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
-      break;    
+      break;
     }
     case kRiscvI32x4Splat: {
       (__ VU).set(kScratchReg, E32, m1);
       __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
-      break;   
+      break;
     }
     case kRiscvI64x2Splat: {
       (__ VU).set(kScratchReg, E64, m1);
       __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
-      break;   
+      break;
     }
     case kRiscvI32x4Abs: {
       __ VU.set(kScratchReg, E32, m1);
@@ -2173,7 +2170,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ WasmRvvGeU(i.OutputSimd128Register(), i.InputSimd128Register(0),
                     i.InputSimd128Register(1), E32, m1);
       break;
-    }    
+    }
     case kRiscvI8x16GtS: {
       __ WasmRvvGtS(i.OutputSimd128Register(), i.InputSimd128Register(0),
                     i.InputSimd128Register(1), E8, m1);
@@ -2207,6 +2204,56 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvI32x4GtU: {
       __ WasmRvvGtU(i.OutputSimd128Register(), i.InputSimd128Register(0),
                     i.InputSimd128Register(1), E32, m1);
+      break;
+    }
+    case kRiscvI8x16Shl: {
+      __ VU.set(kScratchReg, E8, m1);
+      if (instr->InputAt(1)->IsRegister()) {
+        __ vsll_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputRegister(1));
+      } else {
+        __ vsll_vi(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputInt3(1));
+      }
+      break;
+    }
+    case kRiscvI16x8Shl: {
+      __ VU.set(kScratchReg, E16, m1);
+      if (instr->InputAt(1)->IsRegister()) {
+        __ vsll_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputRegister(1));
+      } else {
+        __ vsll_vi(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputInt4(1));
+      }
+      break;
+    }
+    case kRiscvI32x4Shl: {
+      __ VU.set(kScratchReg, E32, m1);
+      if (instr->InputAt(1)->IsRegister()) {
+        __ vsll_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputRegister(1));
+      } else {
+        __ vsll_vi(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputInt5(1));
+      }
+      break;
+    }
+    case kRiscvI64x2Shl: {
+      __ VU.set(kScratchReg, E64, m1);
+      if (instr->InputAt(1)->IsRegister()) {
+        __ vsll_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputRegister(1));
+      } else {
+        if (is_int5(i.InputInt6(1))) {
+          __ vsll_vi(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                     i.InputInt6(1));
+        } else {
+          __ li(kScratchReg, i.InputInt6(1));
+          __ vsll_vx(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                     kScratchReg);
+        }
+      }
       break;
     }
     default:

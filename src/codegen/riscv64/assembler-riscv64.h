@@ -1140,7 +1140,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       }
     }
 
-    void set(Register rd, Register rs1 ,VSew sew, Vlmul lmul) {
+    void set(Register rd, Register rs1, VSew sew, Vlmul lmul) {
       if (sew != sew_ || lmul != lmul_) {
         sew_ = sew;
         lmul_ = lmul;

@@ -3743,7 +3743,7 @@ void MacroAssembler::GetInstanceTypeRange(Register map, Register type_reg,
   Sub64(range, type_reg, Operand(lower_limit));
 }
 //------------------------------------------------------------------------------
-//Wasm
+// Wasm
 void TurboAssembler::WasmRvvEq(VRegister dst, VRegister lhs, VRegister rhs,
                                VSew sew, Vlmul lmul) {
   VU.set(kScratchReg, sew, lmul);
