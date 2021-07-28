@@ -1924,9 +1924,16 @@ void LiftoffAssembler::emit_f64x2_le(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_s128_const(LiftoffRegister dst,
                                        const uint8_t imms[16]) {
-  VU.set(kScratchReg, VSew::E8, Vlmul::m1);
-  li(kScratchReg, (int64_t)imms);
-  vl(dst.fp().toV(), kScratchReg, 0, VSew::E8);
+  uint64_t imm1 = *((uint64_t*)imms);
+  uint64_t imm2 = *(((uint64_t*)imms) + 1);
+  VU.set(kScratchReg, VSew::E64, Vlmul::m1);
+  li(kScratchReg, 1);
+  vmv_vx(v0, kScratchReg);
+  li(kScratchReg, imm1);
+  vmerge_vx(dst.fp().toV(), kScratchReg, dst.fp().toV());
+  li(kScratchReg, imm2);
+  vsll_vi(v0, v0, 1);
+  vmerge_vx(dst.fp().toV(), kScratchReg, dst.fp().toV());
 }
 
 void LiftoffAssembler::emit_s128_not(LiftoffRegister dst, LiftoffRegister src) {
