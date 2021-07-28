@@ -2075,6 +2075,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
       break;   
     }
+    case kRiscvI32x4Abs: {
+      __ VU.set(kScratchReg, E32, m1);
+      __ vmv_vx(kSimd128RegZero, zero_reg);
+      __ vmv_vv(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ vmslt_vv(v0, i.InputSimd128Register(0), kSimd128RegZero);
+      __ vsub_vv(i.OutputSimd128Register(), kSimd128RegZero,
+                 i.InputSimd128Register(0), Mask);
+      break;
+    }
     default:
 #ifdef DEBUG
       switch (arch_opcode) {

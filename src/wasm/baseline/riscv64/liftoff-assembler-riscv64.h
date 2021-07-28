@@ -2663,7 +2663,11 @@ void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
-  bailout(kSimd, "emit_i32x4_abs");
+  VU.set(kScratchReg, E32, m1);
+  vmv_vx(kSimd128RegZero, zero_reg);
+  vmv_vv(dst.fp().toV(), src.fp().toV());
+  vmslt_vv(v0, src.fp().toV(), kSimd128RegZero);
+  vsub_vv(dst.fp().toV(), kSimd128RegZero, src.fp().toV(), Mask);
 }
 
 void LiftoffAssembler::emit_i8x16_extract_lane_s(LiftoffRegister dst,

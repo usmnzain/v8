@@ -1910,55 +1910,55 @@ void Decoder::DecodeRvvIVV(Instruction* instr) {
       Format(instr, "vadd.vv   'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VSADD_VV:
-      Format(instr, "vsadd.vv   'vd, 'vs2, 'vs1'vm");
+      Format(instr, "vsadd.vv  'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VSUB_VV:
-      Format(instr, "vsub.vv    'vd, 'vs2, 'vs1'vm");
+      Format(instr, "vsub.vv   'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VSSUB_VV:
-      Format(instr, "vssub.vv   'vd, 'vs2, 'vs1'vm");
+      Format(instr, "vssub.vv  'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VMIN_VV:
-      Format(instr, "vmin.vv    'vd, 'vs2, 'vs1'vm");
+      Format(instr, "vmin.vv   'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VMINU_VV:
-      Format(instr, "vminu.vv   'vd, 'vs2, 'vs1'vm");
+      Format(instr, "vminu.vv  'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VMAX_VV:
-      Format(instr, "vmax.vv    'vd, 'vs2, 'vs1'vm");
+      Format(instr, "vmax.vv   'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VMAXU_VV:
-      Format(instr, "vmaxu.vv   'vd, 'vs2, 'vs1'vm");
+      Format(instr, "vmaxu.vv  'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VAND_VV:
-      Format(instr, "vand.vv    'vd, 'vs2, 'vs1'vm");
+      Format(instr, "vand.vv   'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VOR_VV:
-      Format(instr, "vor.vv     'vd, 'vs2, 'vs1'vm");
+      Format(instr, "vor.vv    'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VXOR_VV:
-      Format(instr, "vxor.vv     'vd, 'vs2, 'vs1'vm");
+      Format(instr, "vxor.vv   'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VRGATHER_VV:
       Format(instr, "vrgather.vv 'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VMSEQ_VV:
-      Format(instr, "vmseq.vv    'vd, 'vs2, 'vs1'vm");
+      Format(instr, "vmseq.vv  'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VMSNE_VV:
-      Format(instr, "vmsne.vv    'vd, 'vs2, 'vs1'vm");
+      Format(instr, "vmsne.vv  'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VMSLT_VV:
-      Format(instr, "vmslt.vv    'vd, 'vs2, 'vs1'vm");
+      Format(instr, "vmslt.vv  'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VMSLTU_VV:
-      Format(instr, "vmsltu.vv    'vd, 'vs2, 'vs1'vm");
+      Format(instr, "vmsltu.vv 'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VMSLE_VV:
-      Format(instr, "vmsle.vv     'vd, 'vs2, 'vs1'vm");
+      Format(instr, "vmsle.vv  'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VMSLEU_VV:
-      Format(instr, "vmsleu.vv    'vd, 'vs2, 'vs1'vm");
+      Format(instr, "vmsleu.vv 'vd, 'vs2, 'vs1'vm");
       break;
     case RO_V_VMV_VV:
       if (instr->RvvVM()) {
@@ -2360,7 +2360,7 @@ void Decoder::DecodeRvvVS(Instruction* instr) {
   uint32_t instr_temp =
       instr->InstructionBits() & (kRvvMopMask | kRvvNfMask | kBaseOpcodeMask);
   if (RO_V_VS == instr_temp) {
-    snprintf(str, sizeof(str), "vse%d.v      'vd, ('rs1)'vm",
+    snprintf(str, sizeof(str), "vse%d.v    'vd, ('rs1)'vm",
              instr->vl_vs_width());
     Format(instr, str);
   } else if (RO_V_VSS == instr_temp) {
