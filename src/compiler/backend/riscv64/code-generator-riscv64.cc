@@ -2256,6 +2256,81 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kRiscvI8x16ReplaceLane: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ VU.set(kScratchReg, E32, m1);
+      __ li(kScratchReg, 0x1 << i.InputInt8(1));
+      __ vmv_sx(v0, kScratchReg);
+      __ vmerge_vx(dst, i.InputRegister(2), src);
+      break;
+    }
+    case kRiscvI16x8ReplaceLane: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ VU.set(kScratchReg, E16, m1);
+      __ li(kScratchReg, 0x1 << i.InputInt8(1));
+      __ vmv_sx(v0, kScratchReg);
+      __ vmerge_vx(dst, i.InputRegister(2), src);
+      break;
+    }
+    case kRiscvI64x2ReplaceLane: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ VU.set(kScratchReg, E64, m1);
+      __ li(kScratchReg, 0x1 << i.InputInt8(1));
+      __ vmv_sx(v0, kScratchReg);
+      __ vmerge_vx(dst, i.InputRegister(2), src);
+      break;
+    }
+    case kRiscvI32x4ReplaceLane: {
+      Simd128Register src = i.InputSimd128Register(0);
+      Simd128Register dst = i.OutputSimd128Register();
+      __ VU.set(kScratchReg, E32, m1);
+      __ li(kScratchReg, 0x1 << i.InputInt8(1));
+      __ vmv_sx(v0, kScratchReg);
+      __ vmerge_vx(dst, i.InputRegister(2), src);
+      break;
+    }
+    case kRiscvI8x16BitMask: {
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      __ VU.set(kScratchReg, E8, m1);
+      __ vmv_vx(kSimd128RegZero, zero_reg);
+      __ vmslt_vv(kSimd128ScratchReg, src, kSimd128RegZero);
+      __ VU.set(kScratchReg, E32, m1);
+      __ vmv_xs(dst, kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvI16x8BitMask: {
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      __ VU.set(kScratchReg, E16, m1);
+      __ vmv_vx(kSimd128RegZero, zero_reg);
+      __ vmslt_vv(kSimd128ScratchReg, src, kSimd128RegZero);
+      __ VU.set(kScratchReg, E32, m1);
+      __ vmv_xs(dst, kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvI32x4BitMask: {
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      __ VU.set(kScratchReg, E32, m1);
+      __ vmv_vx(kSimd128RegZero, zero_reg);
+      __ vmslt_vv(kSimd128ScratchReg, src, kSimd128RegZero);
+      __ vmv_xs(dst, kSimd128ScratchReg);
+      break;
+    }
+    case kRiscvI64x2BitMask: {
+      Register dst = i.OutputRegister();
+      Simd128Register src = i.InputSimd128Register(0);
+      __ VU.set(kScratchReg, E64, m1);
+      __ vmv_vx(kSimd128RegZero, zero_reg);
+      __ vmslt_vv(kSimd128ScratchReg, src, kSimd128RegZero);
+      __ VU.set(kScratchReg, E32, m1);
+      __ vmv_xs(dst, kSimd128ScratchReg);
+      break;
+    }
     default:
 #ifdef DEBUG
       switch (arch_opcode) {

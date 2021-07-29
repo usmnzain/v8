@@ -2111,7 +2111,7 @@ void Decoder::DecodeRvvIVX(Instruction* instr) {
       if (instr->RvvVM()) {
         Format(instr, "vmv.vx    'vd, 'rs1");
       } else {
-        Format(instr, "vmerge.vxm       'vd, 'vs2, 'rs1, v0");
+        Format(instr, "vmerge.vxm 'vd, 'vs2, 'rs1, v0");
       }
       break;
     case RO_V_VMSEQ_VX:
@@ -2167,6 +2167,8 @@ void Decoder::DecodeRvvMVV(Instruction* instr) {
     case RO_V_VWXUNARY0:
       if (instr->Vs1Value() == 0x0) {
         Format(instr, "vmv.x.s   'rd, 'vs2");
+      } else {
+        UNSUPPORTED_RISCV();
       }
       break;
     default:
@@ -2181,6 +2183,8 @@ void Decoder::DecodeRvvMVX(Instruction* instr) {
     case RO_V_VRXUNARY0:
       if (instr->Vs2Value() == 0x0) {
         Format(instr, "vmv.s.x   'vd, 'rs1");
+      } else {
+        UNSUPPORTED_RISCV();
       }
       break;
     default:
@@ -2227,9 +2231,9 @@ void Decoder::DecodeVType(Instruction* instr) {
       break;
     case RO_V_VSETVL:
       if (!(instr->InstructionBits() & 0x40000000)) {
-        Format(instr, "vsetvl       'rd, 'rs1,  'rs2");
+        Format(instr, "vsetvl    'rd, 'rs1,  'rs2");
       } else {
-        Format(instr, "vsetivli       'rd, 'uimm, 'sew, 'lmul");
+        Format(instr, "vsetivli  'rd, 'uimm, 'sew, 'lmul");
       }
       break;
     default:

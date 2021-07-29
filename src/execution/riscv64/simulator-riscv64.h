@@ -987,7 +987,6 @@ class Simulator : public SimulatorBase {
 
 #define RVV_VI_VVXI_MERGE_LOOP(BODY) \
   RVV_VI_GENERAL_LOOP_BASE           \
-  RVV_VI_LOOP_MASK_SKIP()            \
   if (rvv_vsew() == E8) {            \
     VXI_PARAMS(8);                   \
     BODY;                            \
@@ -1409,6 +1408,7 @@ class Simulator : public SimulatorBase {
   void DecodeRvvIVI();
   void DecodeRvvIVX();
   void DecodeRvvMVV();
+  void DecodeRvvMVX();
   bool DecodeRvvVL();
   bool DecodeRvvVS();
 

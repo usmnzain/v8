@@ -4161,6 +4161,48 @@ void Simulator::DecodeRvvMVV() {
   }
 }
 
+void Simulator::DecodeRvvMVX() {
+  DCHECK_EQ(instr_.InstructionBits() & (kBaseOpcodeMask | kFunct3Mask), OP_MVX);
+  switch (instr_.InstructionBits() & kVTypeMask) {
+    case RO_V_VRXUNARY0:
+      if (instr_.Vs2Value() == 0x0) {
+        if (rvv_vl() > 0 && rvv_vstart() < rvv_vl()) {
+          switch (rvv_vsew()) {
+            case E8:
+              Rvvelt<uint8_t>(rvv_vd_reg(), 0, true) = (uint8_t)get_register(rs1_reg());
+              break;
+            case E16:
+              Rvvelt<uint16_t>(rvv_vd_reg(), 0, true) = (uint16_t)get_register(rs1_reg());
+              break;
+            case E32:
+              Rvvelt<uint32_t>(rvv_vd_reg(), 0, true) = (uint32_t)get_register(rs1_reg());
+              break;
+            case E64:
+              Rvvelt<uint64_t>(rvv_vd_reg(), 0, true) = (uint64_t)get_register(rs1_reg());
+              break;
+            default:
+              UNREACHABLE();
+          }
+          // set_rvv_vl(0);
+        }
+        set_rvv_vstart(0);
+        rvv_trace_vd();
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
+    default:
+      v8::base::EmbeddedVector<char, 256> buffer;
+      disasm::NameConverter converter;
+      disasm::Disassembler dasm(converter);
+      dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(&instr_));
+      PrintF("EXECUTING  0x%08" PRIxPTR "   %-44s\n",
+             reinterpret_cast<intptr_t>(&instr_), buffer.begin());
+      UNIMPLEMENTED_RISCV();
+      break;
+  }
+}
+
 void Simulator::DecodeVType() {
   switch (instr_.InstructionBits() & (kFunct3Mask | kBaseOpcodeMask)) {
     case OP_IVV:
@@ -4188,7 +4230,7 @@ void Simulator::DecodeVType() {
       return;
       break;
     case OP_MVX:
-      UNIMPLEMENTED_RISCV();
+      DecodeRvvMVX();
       return;
       break;
   }
@@ -4332,7 +4374,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
   }
 
   if (::v8::internal::FLAG_trace_sim) {
-    PrintF("  0x%012" PRIxPTR "      %-44s   %s\n",
+    PrintF("  0x%012" PRIxPTR "      %-44s\t%s\n",
            reinterpret_cast<intptr_t>(instr), buffer.begin(),
            trace_buf_.begin());
   }
