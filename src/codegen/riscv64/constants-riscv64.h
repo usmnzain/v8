@@ -851,6 +851,13 @@ enum Opcode : uint32_t {
 
   VREDMAXU_FUNCT6 = 0b000110,
   RO_V_VREDMAXU = OP_MVV | (VREDMAXU_FUNCT6 << kRvvFunct6Shift),
+  VREDMAX_FUNCT6 = 0b000111,
+  RO_V_VREDMAX = OP_MVV | (VREDMAX_FUNCT6 << kRvvFunct6Shift),
+
+  VREDMINU_FUNCT6 = 0b000100,
+  RO_V_VREDMINU = OP_MVV | (VREDMINU_FUNCT6 << kRvvFunct6Shift),
+  VREDMIN_FUNCT6 = 0b000101,
+  RO_V_VREDMIN = OP_MVV | (VREDMIN_FUNCT6 << kRvvFunct6Shift),
 };
 
 // ----- Emulated conditions.

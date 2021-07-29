@@ -2344,6 +2344,58 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(&t);
       break;
     }
+    case kRiscvI64x2AllTrue: {
+      __ VU.set(kScratchReg, E64, m1);
+      Register dst = i.OutputRegister();
+      Label all_true;
+      __ li(kScratchReg, -1);
+      __ vmv_sx(kSimd128ScratchReg, kScratchReg);
+      __ vredminu_vs(kSimd128ScratchReg, i.InputSimd128Register(0), kSimd128ScratchReg);
+      __ vmv_xs(dst, kSimd128ScratchReg);
+      __ beqz(dst, &all_true);
+      __ li(dst, 1);
+      __ bind(&all_true);
+      break;
+    }
+    case kRiscvI32x4AllTrue: {
+      __ VU.set(kScratchReg, E32, m1);
+      Register dst = i.OutputRegister();
+      Label all_true;
+      __ li(kScratchReg, -1);
+      __ vmv_sx(kSimd128ScratchReg, kScratchReg);
+      __ vredminu_vs(kSimd128ScratchReg, i.InputSimd128Register(0), kSimd128ScratchReg);
+      __ vmv_xs(dst, kSimd128ScratchReg);
+      __ beqz(dst, &all_true);
+      __ li(dst, 1);
+      __ bind(&all_true);
+      break;
+    }
+    case kRiscvI16x8AllTrue: {
+      __ VU.set(kScratchReg, E16, m1);
+      Register dst = i.OutputRegister();
+      Label all_true;
+      __ li(kScratchReg, -1);
+      __ vmv_sx(kSimd128ScratchReg, kScratchReg);
+      __ vredminu_vs(kSimd128ScratchReg, i.InputSimd128Register(0), kSimd128ScratchReg);
+      __ vmv_xs(dst, kSimd128ScratchReg);
+      __ beqz(dst, &all_true);
+      __ li(dst, 1);
+      __ bind(&all_true);
+      break;
+    }
+    case kRiscvI8x16AllTrue: {
+      __ VU.set(kScratchReg, E8, m1);
+      Register dst = i.OutputRegister();
+      Label all_true;
+      __ li(kScratchReg, -1);
+      __ vmv_sx(kSimd128ScratchReg, kScratchReg);
+      __ vredminu_vs(kSimd128ScratchReg, i.InputSimd128Register(0), kSimd128ScratchReg);
+      __ vmv_xs(dst, kSimd128ScratchReg);
+      __ beqz(dst, &all_true);
+      __ li(dst, 1);
+      __ bind(&all_true);
+      break;
+    }
     default:
 #ifdef DEBUG
       switch (arch_opcode) {

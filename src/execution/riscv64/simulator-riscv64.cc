@@ -4153,6 +4153,18 @@ void Simulator::DecodeRvvMVV() {
       RVV_VI_VV_ULOOP_REDUCTION(
           { vd_0_res = (vd_0_res >= vs2) ? vd_0_res : vs2; })
       break;
+    case RO_V_VREDMAX:
+      RVV_VI_VV_LOOP_REDUCTION(
+          { vd_0_res = (vd_0_res >= vs2) ? vd_0_res : vs2; })
+      break;
+    case RO_V_VREDMINU:
+      RVV_VI_VV_ULOOP_REDUCTION(
+          { vd_0_res = (vd_0_res <= vs2) ? vd_0_res : vs2; })
+      break;
+    case RO_V_VREDMIN:
+      RVV_VI_VV_LOOP_REDUCTION(
+          { vd_0_res = (vd_0_res <= vs2) ? vd_0_res : vs2; })
+      break;
     default:
       v8::base::EmbeddedVector<char, 256> buffer;
       disasm::NameConverter converter;
