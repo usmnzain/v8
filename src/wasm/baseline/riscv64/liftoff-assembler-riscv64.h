@@ -2278,9 +2278,12 @@ void LiftoffAssembler::emit_i32x4_shl(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i32x4_shli(LiftoffRegister dst, LiftoffRegister lhs,
                                        int32_t rhs) {
-  DCHECK(is_uint5(rhs));
-  VU.set(kScratchReg, E32, m1);
-  vsll_vi(dst.fp().toV(), lhs.fp().toV(), rhs);
+  if (is_uint5(rhs)) {
+    vsll_vi(dst.fp().toV(), lhs.fp().toV(), rhs);
+  } else {
+    li(kScratchReg, rhs);
+    vsll_vx(dst.fp().toV(), lhs.fp().toV(), kScratchReg);
+  }
 }
 
 void LiftoffAssembler::emit_i32x4_shr_s(LiftoffRegister dst,

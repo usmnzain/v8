@@ -2087,6 +2087,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmv_vx(i.OutputSimd128Register(), i.InputRegister(0));
       break;
     }
+    case kRiscvF32x4Splat: {
+      (__ VU).set(kScratchReg, E32, m1);
+      __ fmv_x_w(kScratchReg, i.InputSingleRegister(0));
+      __ vmv_vx(i.OutputSimd128Register(), kScratchReg);
+      break;
+    }
+    case kRiscvF64x2Splat: {
+      (__ VU).set(kScratchReg, E64, m1);
+      __ fmv_x_d(kScratchReg, i.InputDoubleRegister(0));
+      __ vmv_vx(i.OutputSimd128Register(), kScratchReg);
+      break;
+    }
     case kRiscvI32x4Abs: {
       __ VU.set(kScratchReg, E32, m1);
       __ vmv_vx(kSimd128RegZero, zero_reg);
