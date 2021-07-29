@@ -4149,6 +4149,10 @@ void Simulator::DecodeRvvMVV() {
         UNIMPLEMENTED_RISCV();
       }
     } break;
+    case RO_V_VREDMAXU:
+      RVV_VI_VV_ULOOP_REDUCTION(
+          { vd_0_res = (vd_0_res >= vs2) ? vd_0_res : vs2; })
+      break;
     default:
       v8::base::EmbeddedVector<char, 256> buffer;
       disasm::NameConverter converter;
@@ -4169,16 +4173,20 @@ void Simulator::DecodeRvvMVX() {
         if (rvv_vl() > 0 && rvv_vstart() < rvv_vl()) {
           switch (rvv_vsew()) {
             case E8:
-              Rvvelt<uint8_t>(rvv_vd_reg(), 0, true) = (uint8_t)get_register(rs1_reg());
+              Rvvelt<uint8_t>(rvv_vd_reg(), 0, true) =
+                  (uint8_t)get_register(rs1_reg());
               break;
             case E16:
-              Rvvelt<uint16_t>(rvv_vd_reg(), 0, true) = (uint16_t)get_register(rs1_reg());
+              Rvvelt<uint16_t>(rvv_vd_reg(), 0, true) =
+                  (uint16_t)get_register(rs1_reg());
               break;
             case E32:
-              Rvvelt<uint32_t>(rvv_vd_reg(), 0, true) = (uint32_t)get_register(rs1_reg());
+              Rvvelt<uint32_t>(rvv_vd_reg(), 0, true) =
+                  (uint32_t)get_register(rs1_reg());
               break;
             case E64:
-              Rvvelt<uint64_t>(rvv_vd_reg(), 0, true) = (uint64_t)get_register(rs1_reg());
+              Rvvelt<uint64_t>(rvv_vd_reg(), 0, true) =
+                  (uint64_t)get_register(rs1_reg());
               break;
             default:
               UNREACHABLE();

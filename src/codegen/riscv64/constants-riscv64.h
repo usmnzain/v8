@@ -847,7 +847,10 @@ enum Opcode : uint32_t {
   VRXUNARY0_FUNCT6 = 0b010000,
 
   RO_V_VWXUNARY0 = OP_MVV | (VWXUNARY0_FUNCT6 << kRvvFunct6Shift),
-  RO_V_VRXUNARY0 = OP_MVX | (VRXUNARY0_FUNCT6 << kRvvFunct6Shift)
+  RO_V_VRXUNARY0 = OP_MVX | (VRXUNARY0_FUNCT6 << kRvvFunct6Shift),
+
+  VREDMAXU_FUNCT6 = 0b000110,
+  RO_V_VREDMAXU = OP_MVV | (VREDMAXU_FUNCT6 << kRvvFunct6Shift),
 };
 
 // ----- Emulated conditions.

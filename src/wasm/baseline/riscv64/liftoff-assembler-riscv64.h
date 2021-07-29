@@ -1986,7 +1986,14 @@ void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_v128_anytrue(LiftoffRegister dst,
                                          LiftoffRegister src) {
-  bailout(kSimd, "emit_v128_anytrue");
+  VU.set(kScratchReg, E8, m1);
+  Label t;
+  vmv_sx(kSimd128ScratchReg, zero_reg);
+  vredmaxu_vs(kSimd128ScratchReg, src.fp().toV(), kSimd128ScratchReg);
+  vmv_xs(dst.gp(), kSimd128ScratchReg);
+  beq(dst.gp(), zero_reg, &t);
+  li(dst.gp(), 1);
+  bind(&t);
 }
 
 void LiftoffAssembler::emit_i8x16_alltrue(LiftoffRegister dst,

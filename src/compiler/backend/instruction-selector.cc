@@ -2806,7 +2806,7 @@ void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
 
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
 #if !V8_TARGET_ARCH_ARM64
-#if !V8_TARGET_ARCH_MIPS64
+#if !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_RISCV64
 void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }

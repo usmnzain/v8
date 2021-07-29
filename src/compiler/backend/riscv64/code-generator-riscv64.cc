@@ -2331,6 +2331,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmv_xs(dst, kSimd128ScratchReg);
       break;
     }
+    case kRiscvV128AnyTrue: {
+      __ VU.set(kScratchReg, E8, m1);
+      Register dst = i.OutputRegister();
+      Label t;
+      __ vmv_sx(kSimd128ScratchReg, zero_reg);
+      __ vredmaxu_vs(kSimd128ScratchReg, i.InputSimd128Register(0),
+                     kSimd128ScratchReg);
+      __ vmv_xs(dst, kSimd128ScratchReg);
+      __ beq(dst, zero_reg, &t);
+      __ li(dst, 1);
+      __ bind(&t);
+      break;
+    }
     default:
 #ifdef DEBUG
       switch (arch_opcode) {

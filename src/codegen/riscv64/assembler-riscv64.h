@@ -756,6 +756,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void name##_vi(VRegister vd, VRegister vs2, uint8_t imm5, \
                  MaskType mask = NoMask);
 
+#define DEFINE_OPMVV(name, funct6)                           \
+  void name##_vs(VRegister vd, VRegister vs2, VRegister vs1, \
+                 MaskType mask = NoMask);
+
+#define DEFINE_OPMVX(name, funct6)                          \
+  void name##_vx(VRegister vd, VRegister vs2, Register rs1, \
+                 MaskType mask = NoMask);
+
   DEFINE_OPIVV(vadd, VADD_FUNCT6)
   DEFINE_OPIVX(vadd, VADD_FUNCT6)
   DEFINE_OPIVI(vadd, VADD_FUNCT6)
@@ -834,9 +842,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   DEFINE_OPIVV(vsll, VSLL_FUNCT6)
   DEFINE_OPIVX(vsll, VSLL_FUNCT6)
   DEFINE_OPIVI(vsll, VSLL_FUNCT6)
+
+  DEFINE_OPMVV(vredmaxu, VREDMAXU_FUNCT6)
 #undef DEFINE_OPIVI
 #undef DEFINE_OPIVV
 #undef DEFINE_OPIVX
+#undef DEFINE_OPMVV
+#undef DEFINE_OPMVX
 
   void vnot_vv(VRegister dst, VRegister src) { vxor_vi(dst, src, -1); }
 

@@ -771,9 +771,9 @@ class Simulator : public SimulatorBase {
   inline void rvv_trace_vd() {
     if (::v8::internal::FLAG_trace_sim) {
       __int128_t value = Vregister_[rvv_vd_reg()];
-      SNPrintF(trace_buf_, "0x%016" PRIx64 "%016" PRIx64,
+      SNPrintF(trace_buf_, "0x%016" PRIx64 "%016" PRIx64 " (%" PRId64 ")",
                *(reinterpret_cast<int64_t*>(&value) + 1),
-               *reinterpret_cast<int64_t*>(&value));
+               *reinterpret_cast<int64_t*>(&value), icount_);
     }
   }
 
@@ -1197,6 +1197,63 @@ class Simulator : public SimulatorBase {
     BODY;                         \
   }                               \
   RVV_VI_LOOP_CMP_END
+
+// reduction loop - signed
+#define RVV_VI_LOOP_REDUCTION_BASE(x)                                  \
+  auto& vd_0_des = Rvvelt<type_sew_t<x>::type>(rvv_vd_reg(), 0, true); \
+  auto vd_0_res = Rvvelt<type_sew_t<x>::type>(rvv_vs1_reg(), 0);       \
+  for (uint64_t i = rvv_vstart(); i < rvv_vl(); ++i) {                 \
+    RVV_VI_LOOP_MASK_SKIP();                                           \
+    auto vs2 = Rvvelt<type_sew_t<x>::type>(rvv_vs2_reg(), i);
+
+#define RVV_VI_LOOP_REDUCTION_END(x) \
+  }                                  \
+  if (rvv_vl() > 0) {                \
+    vd_0_des = vd_0_res;             \
+  }                                  \
+  set_rvv_vstart(0);
+
+#define REDUCTION_LOOP(x, BODY) \
+  RVV_VI_LOOP_REDUCTION_BASE(x) \
+  BODY;                         \
+  RVV_VI_LOOP_REDUCTION_END(x)
+
+#define RVV_VI_VV_LOOP_REDUCTION(BODY) \
+  if (rvv_vsew() == E8) {              \
+    REDUCTION_LOOP(8, BODY)            \
+  } else if (rvv_vsew() == E16) {      \
+    REDUCTION_LOOP(16, BODY)           \
+  } else if (rvv_vsew() == E32) {      \
+    REDUCTION_LOOP(32, BODY)           \
+  } else if (rvv_vsew() == E64) {      \
+    REDUCTION_LOOP(64, BODY)           \
+  }                                    \
+  rvv_trace_vd();
+
+// reduction loop - unsgied
+#define RVV_VI_ULOOP_REDUCTION_BASE(x)                                  \
+  auto& vd_0_des = Rvvelt<type_usew_t<x>::type>(rvv_vd_reg(), 0, true); \
+  auto vd_0_res = Rvvelt<type_usew_t<x>::type>(rvv_vs1_reg(), 0);       \
+  for (reg_t i = rvv_vstart(); i < rvv_vl(); ++i) {                     \
+    RVV_VI_LOOP_MASK_SKIP();                                            \
+    auto vs2 = Rvvelt<type_usew_t<x>::type>(rvv_vs2_reg(), i);
+
+#define REDUCTION_ULOOP(x, BODY) \
+  RVV_VI_ULOOP_REDUCTION_BASE(x) \
+  BODY;                          \
+  RVV_VI_LOOP_REDUCTION_END(x)
+
+#define RVV_VI_VV_ULOOP_REDUCTION(BODY) \
+  if (rvv_vsew() == E8) {               \
+    REDUCTION_ULOOP(8, BODY)            \
+  } else if (rvv_vsew() == E16) {       \
+    REDUCTION_ULOOP(16, BODY)           \
+  } else if (rvv_vsew() == E32) {       \
+    REDUCTION_ULOOP(32, BODY)           \
+  } else if (rvv_vsew() == E64) {       \
+    REDUCTION_ULOOP(64, BODY)           \
+  }                                     \
+  rvv_trace_vd();
 
 #define VI_STRIP(inx) reg_t vreg_inx = inx;
 

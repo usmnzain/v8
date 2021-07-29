@@ -376,7 +376,7 @@ constexpr Register kWasmCompileLazyFuncIndexRegister = t0;
 
 constexpr DoubleRegister kFPReturnRegister0 = fa0;
 constexpr VRegister kSimd128ScratchReg = v27;
-constexpr VRegister kSimd128RegZero = v26;
+constexpr VRegister kSimd128RegZero = v25;
 
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 constexpr Register kPtrComprCageBaseRegister = s11;  // callee save

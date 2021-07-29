@@ -2470,6 +2470,12 @@ void Assembler::vmadc_vi(VRegister vd, uint8_t imm5, VRegister vs2) {
     GenInstrV(funct6, vd, imm5, vs2, mask);                            \
   }
 
+#define DEFINE_OPMVV(name, funct6)                                      \
+  void Assembler::name##_vs(VRegister vd, VRegister vs2, VRegister vs1, \
+                            MaskType mask) {                            \
+    GenInstrV(funct6, OP_MVV, vd, vs1, vs2, mask);                      \
+  }
+
 DEFINE_OPIVV(vadd, VADD_FUNCT6)
 DEFINE_OPIVX(vadd, VADD_FUNCT6)
 DEFINE_OPIVI(vadd, VADD_FUNCT6)
@@ -2548,6 +2554,8 @@ DEFINE_OPIVI(vsrl, VSRL_FUNCT6)
 DEFINE_OPIVV(vsll, VSLL_FUNCT6)
 DEFINE_OPIVX(vsll, VSLL_FUNCT6)
 DEFINE_OPIVI(vsll, VSLL_FUNCT6)
+
+DEFINE_OPMVV(vredmaxu, VREDMAXU_FUNCT6)
 #undef DEFINE_OPIVI
 #undef DEFINE_OPIVV
 #undef DEFINE_OPIVX

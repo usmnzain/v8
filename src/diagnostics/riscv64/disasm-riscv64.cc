@@ -2171,6 +2171,9 @@ void Decoder::DecodeRvvMVV(Instruction* instr) {
         UNSUPPORTED_RISCV();
       }
       break;
+    case RO_V_VREDMAXU:
+      Format(instr, "vredmaxu.vs  'vd, 'vs2, 'vs1'vm");
+      break;
     default:
       UNSUPPORTED_RISCV();
       break;
