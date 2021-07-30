@@ -1178,7 +1178,7 @@ void Assembler::GenInstrV(uint8_t funct6, Register rd, Register rs1,
   emit(instr);
 }
 // OPIVI
-void Assembler::GenInstrV(uint8_t funct6, VRegister vd, uint8_t imm5,
+void Assembler::GenInstrV(uint8_t funct6, VRegister vd, int8_t imm5,
                           VRegister vs2, MaskType mask) {
   DCHECK(is_uint5(imm5) || is_int5(imm5));
   Instr instr = (funct6 << kRvvFunct6Shift) | OP_IVI | (mask << kRvvVmShift) |
@@ -2465,7 +2465,7 @@ void Assembler::vmadc_vi(VRegister vd, uint8_t imm5, VRegister vs2) {
   }
 
 #define DEFINE_OPIVI(name, funct6)                                     \
-  void Assembler::name##_vi(VRegister vd, VRegister vs2, uint8_t imm5, \
+  void Assembler::name##_vi(VRegister vd, VRegister vs2, int8_t imm5, \
                             MaskType mask) {                           \
     GenInstrV(funct6, vd, imm5, vs2, mask);                            \
   }

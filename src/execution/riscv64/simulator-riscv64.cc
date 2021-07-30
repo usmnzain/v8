@@ -3771,6 +3771,38 @@ void Simulator::DecodeRvvIVV() {
       RVV_VI_VV_LOOP({ vd = vs2 << vs1; })
       break;
     }
+    case RO_V_VRGATHER_VV: {
+      RVV_VI_GENERAL_LOOP_BASE
+      switch (rvv_vsew()) {
+        case E8: {
+          auto vs1 = Rvvelt<uint8_t>(rvv_vs1_reg(), i);
+          // if (i > 255) continue;
+          Rvvelt<uint8_t>(rvv_vd_reg(), i, true) =
+              vs1 >= rvv_vlmax() ? 0 : Rvvelt<uint8_t>(rvv_vs2_reg(), vs1);
+          break;
+        }
+        case E16: {
+          auto vs1 = Rvvelt<uint16_t>(rvv_vs1_reg(), i);
+          Rvvelt<uint16_t>(rvv_vd_reg(), i, true) =
+              vs1 >= rvv_vlmax() ? 0 : Rvvelt<uint16_t>(rvv_vs2_reg(), vs1);
+          break;
+        }
+        case E32: {
+          auto vs1 = Rvvelt<uint32_t>(rvv_vs1_reg(), i);
+          Rvvelt<uint32_t>(rvv_vd_reg(), i, true) =
+              vs1 >= rvv_vlmax() ? 0 : Rvvelt<uint32_t>(rvv_vs2_reg(), vs1);
+          break;
+        }
+        default: {
+          auto vs1 = Rvvelt<uint64_t>(rvv_vs1_reg(), i);
+          Rvvelt<uint64_t>(rvv_vd_reg(), i, true) =
+              vs1 >= rvv_vlmax() ? 0 : Rvvelt<uint64_t>(rvv_vs2_reg(), vs1);
+          break;
+        }
+      }
+      RVV_VI_LOOP_END;
+      break;
+    }
     default:
       // v8::base::EmbeddedVector<char, 256> buffer;
       // SNPrintF(trace_buf_, " ");

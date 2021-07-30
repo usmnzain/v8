@@ -727,7 +727,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
       // RVV Vector Arithmetic Instruction
 
-      void vmv_vv(VRegister vd, VRegister vs1);
+  void vmv_vv(VRegister vd, VRegister vs1);
   void vmv_vx(VRegister vd, Register rs1);
   void vmv_vi(VRegister vd, uint8_t simm5);
   void vmv_xs(Register rd, VRegister vs2);
@@ -753,7 +753,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                  MaskType mask = NoMask);
 
 #define DEFINE_OPIVI(name, funct6)                          \
-  void name##_vi(VRegister vd, VRegister vs2, uint8_t imm5, \
+  void name##_vi(VRegister vd, VRegister vs2, int8_t imm5, \
                  MaskType mask = NoMask);
 
 #define DEFINE_OPMVV(name, funct6)                           \
@@ -1443,7 +1443,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void GenInstrV(uint8_t funct6, Register rd, Register rs1, VRegister vs2,
                  MaskType mask = NoMask);
   // OPIVI
-  void GenInstrV(uint8_t funct6, VRegister vd, uint8_t simm5, VRegister vs2,
+  void GenInstrV(uint8_t funct6, VRegister vd, int8_t simm5, VRegister vs2,
                  MaskType mask = NoMask);
 
   // VL VS

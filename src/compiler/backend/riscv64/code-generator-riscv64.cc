@@ -2408,6 +2408,36 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(&all_true);
       break;
     }
+    case kRiscvI8x16Shuffle: {
+      VRegister dst = i.OutputSimd128Register(),
+                src0 = i.InputSimd128Register(0),
+                src1 = i.InputSimd128Register(1);
+
+      int64_t imm1 = make_uint64(i.InputInt32(3), i.InputInt32(2));
+      int64_t imm2 = make_uint64(i.InputInt32(5), i.InputInt32(4));
+      __ VU.set(kScratchReg, VSew::E64, Vlmul::m1);
+      __ li(kScratchReg, 1);
+      __ vmv_vx(v0, kScratchReg);
+      __ li(kScratchReg, imm1);
+      __ vmerge_vx(kSimd128ScratchReg, kScratchReg, kSimd128ScratchReg);
+      __ li(kScratchReg, imm2);
+      __ vsll_vi(v0, v0, 1);
+      __ vmerge_vx(kSimd128ScratchReg, kScratchReg, kSimd128ScratchReg);
+
+      __ VU.set(kScratchReg, E8, m1);
+      if (dst == src0) {
+        __ vmv_vv(kSimd128ScratchReg2, src0);
+        src0 = kSimd128ScratchReg2;
+      } else if (dst == src1) {
+        __ vmv_vv(kSimd128ScratchReg2, src1);
+        src1 = kSimd128ScratchReg2;
+      }
+      __ vrgather_vv(dst, src0, kSimd128ScratchReg);
+      __ vadd_vi(kSimd128ScratchReg, kSimd128ScratchReg, -16);
+      __ vrgather_vv(kSimd128ScratchReg, src1, kSimd128ScratchReg);
+      __ vor_vv(dst, dst, kSimd128ScratchReg);
+      break;
+    }
     default:
 #ifdef DEBUG
       switch (arch_opcode) {

@@ -318,7 +318,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvS8x2Reverse:
     case kRiscvS8x4Reverse:
     case kRiscvS8x8Reverse:
-    case kRiscvS8x16Shuffle:
+    case kRiscvI8x16Shuffle:
     case kRiscvI8x16Swizzle:
     case kRiscvSar32:
     case kRiscvSignExtendByte:

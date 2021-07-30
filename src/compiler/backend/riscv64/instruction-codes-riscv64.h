@@ -355,7 +355,7 @@ namespace compiler {
   V(RiscvS8x16PackOdd)                      \
   V(RiscvS8x16InterleaveEven)               \
   V(RiscvS8x16InterleaveOdd)                \
-  V(RiscvS8x16Shuffle)                      \
+  V(RiscvI8x16Shuffle)                      \
   V(RiscvI8x16Swizzle)                      \
   V(RiscvS8x16Concat)                       \
   V(RiscvS8x8Reverse)                       \

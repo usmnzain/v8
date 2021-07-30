@@ -1642,7 +1642,33 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
                                           LiftoffRegister rhs,
                                           const uint8_t shuffle[16],
                                           bool is_swizzle) {
-  bailout(kSimd, "emit_i8x16_shuffle");
+  VRegister dst_v = dst.fp().toV();
+  VRegister lhs_v = lhs.fp().toV();
+  VRegister rhs_v = rhs.fp().toV();
+  
+  uint64_t imm1 = *((uint64_t*)shuffle);
+  uint64_t imm2 = *(((uint64_t*)shuffle) + 1);
+  VU.set(kScratchReg, VSew::E64, Vlmul::m1);
+  li(kScratchReg, 1);
+  vmv_vx(v0, kScratchReg);
+  li(kScratchReg, imm1);
+  vmerge_vx(kSimd128ScratchReg, kScratchReg, kSimd128ScratchReg);
+  li(kScratchReg, imm2);
+  vsll_vi(v0, v0, 1);
+  vmerge_vx(kSimd128ScratchReg, kScratchReg, kSimd128ScratchReg);
+
+  VU.set(kScratchReg, E8, m1);
+  if (dst_v == lhs_v) {
+    vmv_vv(kSimd128ScratchReg2, lhs_v);
+    lhs_v = kSimd128ScratchReg2;
+  } else if (dst_v == rhs_v) {
+    vmv_vv(kSimd128ScratchReg2, rhs_v);
+    rhs_v = kSimd128ScratchReg2;
+  }
+  vrgather_vv(dst_v, lhs_v, kSimd128ScratchReg);
+  vadd_vi(kSimd128ScratchReg, kSimd128ScratchReg, -16);
+  vrgather_vv(kSimd128ScratchReg, rhs_v, kSimd128ScratchReg);
+  vor_vv(dst_v, dst_v, kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
