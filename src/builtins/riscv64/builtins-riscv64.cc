@@ -1479,18 +1479,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     __ Branch(&install_baseline_code, ne, scratch,
               Operand(FEEDBACK_VECTOR_TYPE));
 
-    // Read off the optimization state in the feedback vector.
-    // TODO(v8:11429): Is this worth doing here? Baseline code will check it
-    // anyway...
-    __ Ld(optimization_state,
-          FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
-
-    // Check if there is optimized code or a optimization marker that needes to
-    // be processed.
-    __ And(
-        scratch, optimization_state,
-        Operand(FeedbackVector::kHasOptimizedCodeOrCompileOptimizedMarkerMask));
-    __ Branch(&has_optimized_code_or_marker, ne, scratch, Operand(zero_reg));
+    // Check for an optimization marker.
+    LoadOptimizationStateAndJumpIfNeedsProcessing(
+        masm, optimization_state, feedback_vector,
+        &has_optimized_code_or_marker);
 
     // Load the baseline code into the closure.
     __ LoadTaggedPointerField(
