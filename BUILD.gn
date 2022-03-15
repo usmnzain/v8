@@ -2474,7 +2474,7 @@ v8_source_set("v8_initializers") {
   } else if (v8_current_cpu == "riscv32") {
     sources += [
       ### gcmole(arch:riscv64) ###
-      "src/builtins/riscv64/builtins-riscv32.cc",
+      "src/builtins/riscv32/builtins-riscv32.cc",
     ]
   }
 
@@ -3880,6 +3880,7 @@ v8_header_set("v8_internal_headers") {
       "src/codegen/riscv32/constants-riscv32.h",
       "src/codegen/riscv32/macro-assembler-riscv32.h",
       "src/codegen/riscv32/register-riscv32.h",
+      "src/codegen/riscv32/reglist-riscv32.h",
       "src/compiler/backend/riscv32/instruction-codes-riscv32.h",
       "src/execution/riscv32/frame-constants-riscv32.h",
       "src/execution/riscv32/simulator-riscv32.h",
