@@ -228,7 +228,6 @@ class FPURegister : public RegisterBase<FPURegister, kDoubleAfterLast> {
   explicit constexpr FPURegister(int code) : RegisterBase(code) {}
 };
 
-
 // A few double registers are reserved: one as a scratch register and one to
 //  hold 0.0.
 //  fs9: 0.0
