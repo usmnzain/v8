@@ -1499,9 +1499,14 @@ class RiscvDebugger {
   bool GetValue(const char* desc, int64_t* value);
 };
 
-#define UNSUPPORTED()                                                     \
-  printf("Sim: Unsupported instruction. Func:%s Line:%d\n", __FUNCTION__, \
-         __LINE__);                                                       \
+#define UNSUPPORTED()                                                    \
+  v8::base::EmbeddedVector<char, 256> buffer;                            \
+  disasm::NameConverter converter;                                       \
+  disasm::Disassembler dasm(converter);                                  \
+  dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(&instr_));      \
+  printf("Sim: Unsupported instruction. Func:%s Line:%d ", __FUNCTION__, \
+         __LINE__);                                                      \
+  PrintF(" %-44s\n", buffer.begin());                                    \
   base::OS::Abort();
 
 int64_t RiscvDebugger::GetRegisterValue(int regnum) {

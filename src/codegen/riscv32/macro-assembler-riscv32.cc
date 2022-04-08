@@ -1592,7 +1592,7 @@ void TurboAssembler::MultiPush(RegList regs) {
 #define TEST_AND_PUSH_REG(reg)             \
   if (regs.has(reg)) {                     \
     stack_offset -= kSystemPointerSize;    \
-    Sd(reg, MemOperand(sp, stack_offset)); \
+    Sw(reg, MemOperand(sp, stack_offset)); \
     regs.clear(reg);                       \
   }
 
@@ -2371,14 +2371,20 @@ void TurboAssembler::LoadFPRImmediate(FPURegister dst, uint64_t src) {
   } else {
     if (dst == kDoubleRegZero) {
       DCHECK(src == bit_cast<uint64_t>(0.0));
-      fmv_d_x(dst, zero_reg);
+      fcvt_d_w(dst, zero_reg);
       has_double_zero_reg_set_ = true;
       has_single_zero_reg_set_ = false;
     } else {
+      // Todo: need to clear the stack content?
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      li(scratch, Operand(src));
-      fmv_d_x(dst, scratch);
+      uint32_t low_32 = src & 0xffffffffull;
+      uint32_t up_32 = src >> 32;
+      li(scratch, Operand(static_cast<int32_t>(low_32)));
+      Sw(scratch, MemOperand(sp, 0));
+      li(scratch, Operand(static_cast<int32_t>(up_32)));
+      Sw(scratch, MemOperand(sp, 4));
+      LoadDouble(dst, MemOperand(sp, 0));
     }
   }
 }

@@ -44,6 +44,7 @@ namespace internal {
 // Decoder decodes and disassembles instructions into an output buffer.
 // It uses the converter to convert register names and call destinations into
 // more informative description.
+#define V8_TARGET_ARCH_64_BIT
 class Decoder {
  public:
   Decoder(const disasm::NameConverter& converter,
@@ -2877,6 +2878,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
   return instr->InstructionSize();
 }
 
+#undef V8_TARGET_ARCH_64_BIT
 }  // namespace internal
 }  // namespace v8
 
