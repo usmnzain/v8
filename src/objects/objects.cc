@@ -494,6 +494,9 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
     Handle<String> fun_str;
     if (input->IsJSBoundFunction()) {
       fun_str = JSBoundFunction::ToString(Handle<JSBoundFunction>::cast(input));
+    } else if (input->IsJSWrappedFunction()) {
+      fun_str =
+          JSWrappedFunction::ToString(Handle<JSWrappedFunction>::cast(input));
     } else {
       DCHECK(input->IsJSFunction());
       fun_str = JSFunction::ToString(Handle<JSFunction>::cast(input));
@@ -549,9 +552,8 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
                           isolate, Handle<JSBoundFunction>::cast(ctor))
                           .ToHandleChecked();
         } else if (ctor->IsJSFunction()) {
-          Handle<Object> ctor_name_obj =
+          ctor_name =
               JSFunction::GetName(isolate, Handle<JSFunction>::cast(ctor));
-          ctor_name = AsStringOrEmpty(isolate, ctor_name_obj);
         }
 
         if (ctor_name->length() != 0) {
@@ -2448,10 +2450,6 @@ void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
 template void HeapObject::RehashBasedOnMap(Isolate* isolate);
 template void HeapObject::RehashBasedOnMap(LocalIsolate* isolate);
 
-bool HeapObject::IsExternal(Isolate* isolate) const {
-  return map(isolate).FindRootMap(isolate) == isolate->heap()->external_map();
-}
-
 void DescriptorArray::GeneralizeAllFields() {
   int length = number_of_descriptors();
   for (InternalIndex i : InternalIndex::Range(length)) {
@@ -2515,6 +2513,12 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
           Maybe<bool> result =
               JSObject::SetPropertyWithInterceptor(it, should_throw, value);
           if (result.IsNothing() || result.FromJust()) return result;
+          // Assuming that the callback have side effects, we use
+          // Object::SetSuperProperty() which works properly regardless on
+          // whether the property was present on the receiver or not when
+          // storing to the receiver.
+          // Proceed lookup from the next state.
+          it->Next();
         } else {
           Maybe<PropertyAttributes> maybe_attributes =
               JSObject::GetPropertyAttributesWithInterceptor(it);
@@ -2535,10 +2539,8 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
             // property to the receiver.
             it->NotFound();
           }
-          return Object::SetSuperProperty(it, value, store_origin,
-                                          should_throw);
         }
-        break;
+        return Object::SetSuperProperty(it, value, store_origin, should_throw);
       }
 
       case LookupIterator::ACCESSOR: {
@@ -2702,6 +2704,10 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
             JSReceiver::GetOwnPropertyDescriptor(&own_lookup, &desc);
         MAYBE_RETURN(owned, Nothing<bool>());
         if (!owned.FromJust()) {
+          if (!CheckContextualStoreToJSGlobalObject(&own_lookup,
+                                                    should_throw)) {
+            return Nothing<bool>();
+          }
           return JSReceiver::CreateDataProperty(&own_lookup, value,
                                                 should_throw);
         }
@@ -2857,7 +2863,8 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
 Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
                                     PropertyAttributes attributes,
                                     Maybe<ShouldThrow> should_throw,
-                                    StoreOrigin store_origin) {
+                                    StoreOrigin store_origin,
+                                    EnforceDefineSemantics semantics) {
   if (!it->GetReceiver()->IsJSReceiver()) {
     return CannotCreateProperty(it->isolate(), it->GetReceiver(), it->GetName(),
                                 value, should_throw);
@@ -2885,9 +2892,11 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
   Isolate* isolate = it->isolate();
 
   if (it->ExtendingNonExtensible(receiver)) {
-    RETURN_FAILURE(
-        isolate, GetShouldThrow(it->isolate(), should_throw),
-        NewTypeError(MessageTemplate::kObjectNotExtensible, it->GetName()));
+    RETURN_FAILURE(isolate, GetShouldThrow(it->isolate(), should_throw),
+                   NewTypeError(semantics == EnforceDefineSemantics::kDefine
+                                    ? MessageTemplate::kDefineDisallowed
+                                    : MessageTemplate::kObjectNotExtensible,
+                                it->GetName()));
   }
 
   if (it->IsElement(*receiver)) {
@@ -2907,28 +2916,36 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
                  Nothing<bool>());
     JSObject::ValidateElements(*receiver_obj);
     return Just(true);
-  } else {
-    it->UpdateProtector();
-    // Migrate to the most up-to-date map that will be able to store |value|
-    // under it->name() with |attributes|.
-    it->PrepareTransitionToDataProperty(receiver, value, attributes,
-                                        store_origin);
-    DCHECK_EQ(LookupIterator::TRANSITION, it->state());
-    it->ApplyTransitionToDataProperty(receiver);
+  }
 
-    // Write the property value.
-    it->WriteDataValue(value, true);
+  return Object::TransitionAndWriteDataProperty(it, value, attributes,
+                                                should_throw, store_origin);
+}
+
+// static
+Maybe<bool> Object::TransitionAndWriteDataProperty(
+    LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
+    Maybe<ShouldThrow> should_throw, StoreOrigin store_origin) {
+  Handle<JSReceiver> receiver = it->GetStoreTarget<JSReceiver>();
+  it->UpdateProtector();
+  // Migrate to the most up-to-date map that will be able to store |value|
+  // under it->name() with |attributes|.
+  it->PrepareTransitionToDataProperty(receiver, value, attributes,
+                                      store_origin);
+  DCHECK_EQ(LookupIterator::TRANSITION, it->state());
+  it->ApplyTransitionToDataProperty(receiver);
+
+  // Write the property value.
+  it->WriteDataValue(value, true);
 
 #if VERIFY_HEAP
     if (FLAG_verify_heap) {
-      receiver->HeapObjectVerify(isolate);
+      receiver->HeapObjectVerify(it->isolate());
     }
 #endif
-  }
 
-  return Just(true);
+    return Just(true);
 }
-
 // static
 MaybeHandle<Object> Object::ShareSlow(Isolate* isolate,
                                       Handle<HeapObject> value,
@@ -3590,7 +3607,6 @@ Maybe<bool> JSProxy::SetPrivateSymbol(Isolate* isolate, Handle<JSProxy> proxy,
                                       Handle<Symbol> private_name,
                                       PropertyDescriptor* desc,
                                       Maybe<ShouldThrow> should_throw) {
-  DCHECK(!private_name->IsPrivateName());
   // Despite the generic name, this can only add private data properties.
   if (!PropertyDescriptor::IsDataDescriptor(desc) ||
       desc->ToAttributes() != DONT_ENUM) {
@@ -4773,7 +4789,7 @@ Handle<Object> CacheInitialJSArrayMaps(Isolate* isolate,
     Handle<Map> new_map;
     ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(i);
     Map maybe_elements_transition = current_map->ElementsTransitionMap(
-        isolate, ConcurrencyMode::kNotConcurrent);
+        isolate, ConcurrencyMode::kSynchronous);
     if (!maybe_elements_transition.is_null()) {
       new_map = handle(maybe_elements_transition, isolate);
     } else {
@@ -5176,8 +5192,6 @@ void JSArray::Initialize(Handle<JSArray> array, int capacity, int length) {
 }
 
 Maybe<bool> JSArray::SetLength(Handle<JSArray> array, uint32_t new_length) {
-  // We should never end in here with a pixel or external array.
-  DCHECK(array->AllowsSetLength());
   if (array->SetLengthWouldNormalize(new_length)) {
     JSObject::NormalizeElements(array);
   }

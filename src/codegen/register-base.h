@@ -7,7 +7,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/bounds.h"
-#include "src/codegen/reglist.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 
@@ -28,52 +28,21 @@ namespace internal {
 template <typename SubType, int kAfterLastRegister>
 class RegisterBase {
  public:
-  static constexpr int kCode_no_reg = -1;
-  static constexpr int kNumRegisters = kAfterLastRegister;
+  static constexpr int8_t kCode_no_reg = -1;
+  static constexpr int8_t kNumRegisters = kAfterLastRegister;
 
   static constexpr SubType no_reg() { return SubType{kCode_no_reg}; }
 
-  static constexpr SubType from_code(int code) {
-    DCHECK(base::IsInRange(code, 0, kNumRegisters - 1));
+  static constexpr SubType from_code(int8_t code) {
+    DCHECK(base::IsInRange(static_cast<int>(code), 0, kNumRegisters - 1));
     return SubType{code};
-  }
-
-  template <typename... Register>
-  static constexpr RegList ListOf(Register... regs) {
-    return CombineRegLists(regs.bit()...);
   }
 
   constexpr bool is_valid() const { return reg_code_ != kCode_no_reg; }
 
-  constexpr int code() const {
+  constexpr int8_t code() const {
     DCHECK(is_valid());
     return reg_code_;
-  }
-
-  constexpr RegList bit() const {
-    return is_valid() ? RegList{1} << code() : RegList{};
-  }
-
-  static constexpr SubType AnyOf(RegList list) {
-    DCHECK_NE(kEmptyRegList, list);
-    return from_code(base::bits::CountTrailingZeros(list));
-  }
-
-  static constexpr SubType TakeAny(RegList* list) {
-    RegList value = *list;
-    SubType result = AnyOf(value);
-    result.RemoveFrom(list);
-    return result;
-  }
-
-  constexpr void InsertInto(RegList* list) const {
-    DCHECK_NE(bit(), (*list) & bit());
-    *list |= bit();
-  }
-
-  constexpr void RemoveFrom(RegList* list) const {
-    DCHECK_EQ(bit(), (*list) & bit());
-    *list ^= bit();
   }
 
   inline constexpr bool operator==(SubType other) const {
@@ -90,7 +59,8 @@ class RegisterBase {
   explicit constexpr RegisterBase(int code) : reg_code_(code) {}
 
  private:
-  int reg_code_;
+  int8_t reg_code_;
+  STATIC_ASSERT(kAfterLastRegister <= kMaxInt8);
 };
 
 template <typename RegType,

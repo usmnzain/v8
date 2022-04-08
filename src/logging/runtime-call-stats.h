@@ -317,8 +317,8 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Compile, ScopeAnalysis)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Compile, Script)                           \
   ADD_THREAD_SPECIFIC_COUNTER(V, Compile, CompileTask)                      \
-                                                                            \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateFPRegisters)             \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateSIMD128Registers)        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AllocateGeneralRegisters)        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssembleCode)                    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, AssignSpillSlots)                \
@@ -487,7 +487,9 @@ class RuntimeCallTimer final {
   V(WebSnapshotDeserialize_Functions)          \
   V(WebSnapshotDeserialize_Maps)               \
   V(WebSnapshotDeserialize_Objects)            \
-  V(WebSnapshotDeserialize_Strings)
+  V(WebSnapshotDeserialize_Strings)            \
+  V(WrappedFunctionLengthGetter)               \
+  V(WrappedFunctionNameGetter)
 
 #define FOR_EACH_HANDLER_COUNTER(V)               \
   V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)     \

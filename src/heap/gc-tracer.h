@@ -139,13 +139,11 @@ class V8_EXPORT_PRIVATE GCTracer {
       START = 4
     };
 
-#ifdef DEBUG
     // Returns true if the event corresponds to a young generation GC.
     static constexpr bool IsYoungGenerationEvent(Type type) {
       DCHECK_NE(START, type);
       return type == SCAVENGER || type == MINOR_MARK_COMPACTOR;
     }
-#endif
 
     // The state diagram for a GC cycle:
     //   (NOT_RUNNING) -----(StartCycle)----->
@@ -237,6 +235,11 @@ class V8_EXPORT_PRIVATE GCTracer {
     TimedHistogram* type_priority_timer;
   };
 
+  enum class CppType {
+    kMinor,
+    kMajor,
+  };
+
   static const int kThroughputTimeFrameMs = 5000;
   static constexpr double kConservativeSpeedInBytesPerMillisecond = 128 * KB;
 
@@ -269,7 +272,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   void StartCycle(GarbageCollector collector, GarbageCollectionReason gc_reason,
                   const char* collector_reason, MarkingType marking);
   void StopCycle(GarbageCollector collector);
-  void StopCycleIfSweeping();
+  void StopCycleIfNeeded();
 
   // Start and stop a cycle's atomic pause.
   void StartAtomicPause();
@@ -279,6 +282,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   void StopInSafepoint();
 
   void NotifySweepingCompleted();
+  void NotifyCppGCCompleted(CppType);
 
   void NotifyYoungGenerationHandling(
       YoungGenerationHandling young_generation_handling);
@@ -296,6 +300,14 @@ class V8_EXPORT_PRIVATE GCTracer {
             (current_.type == Event::MARK_COMPACTOR ||
              current_.type == Event::INCREMENTAL_MARK_COMPACTOR));
   }
+
+  // Checks if the current event corresponds to a full GC cycle whose sweeping
+  // has not finalized yet.
+  bool IsSweepingInProgress() const {
+    return (current_.type == Event::MARK_COMPACTOR ||
+            current_.type == Event::INCREMENTAL_MARK_COMPACTOR) &&
+           current_.state == Event::State::SWEEPING;
+  }
 #endif
 
   // Sample and accumulate bytes allocated since the last GC.
@@ -312,6 +324,9 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   // Log an incremental marking step.
   void AddIncrementalMarkingStep(double duration, size_t bytes);
+
+  // Log an incremental marking step.
+  void AddIncrementalSweepingStep(double duration);
 
   // Compute the average incremental marking speed in bytes/millisecond.
   // Returns a conservative value if no events have been recorded.
@@ -440,7 +455,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   FRIEND_TEST(GCTracerTest, IncrementalScope);
   FRIEND_TEST(GCTracerTest, IncrementalMarkingSpeed);
   FRIEND_TEST(GCTracerTest, MutatorUtilization);
-  FRIEND_TEST(GCTracerTest, RecordGCSumHistograms);
   FRIEND_TEST(GCTracerTest, RecordMarkCompactHistograms);
   FRIEND_TEST(GCTracerTest, RecordScavengerHistograms);
 
@@ -461,10 +475,10 @@ class V8_EXPORT_PRIVATE GCTracer {
   void RecordMutatorUtilization(double mark_compactor_end_time,
                                 double mark_compactor_duration);
 
-  // Overall time spent in mark compact within a given GC cycle. Exact
-  // accounting of events within a GC is not necessary which is why the
-  // recording takes place at the end of the atomic pause.
-  void RecordGCSumCounters(double atomic_pause_duration);
+  // Update counters for an entire full GC cycle. Exact accounting of events
+  // within a GC is not necessary which is why the recording takes place at the
+  // end of the atomic pause.
+  void RecordGCSumCounters();
 
   double MonotonicallyIncreasingTimeInMs();
 
@@ -494,7 +508,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   void FetchBackgroundGeneralCounters();
 
   void ReportFullCycleToRecorder();
-  void ReportIncrementalMarkingStepToRecorder();
+  void ReportIncrementalMarkingStepToRecorder(double v8_duration);
+  void ReportIncrementalSweepingStepToRecorder(double v8_duration);
   void ReportYoungCycleToRecorder();
 
   // Pointer to the heap that owns this tracer.
@@ -569,6 +584,11 @@ class V8_EXPORT_PRIVATE GCTracer {
   base::RingBuffer<BytesAndDuration> recorded_embedder_generation_allocations_;
   base::RingBuffer<double> recorded_survival_ratios_;
 
+  // A full GC cycle stops only when both v8 and cppgc (if available) GCs have
+  // finished sweeping.
+  bool notified_sweeping_completed_ = false;
+  bool notified_cppgc_completed_ = false;
+
   // When a full GC cycle is interrupted by a young generation GC cycle, the
   // |previous_| event is used as temporary storage for the |current_| event
   // that corresponded to the full GC cycle, and this field is set to true.
@@ -576,6 +596,8 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   v8::metrics::GarbageCollectionFullMainThreadBatchedIncrementalMark
       incremental_mark_batched_events_;
+  v8::metrics::GarbageCollectionFullMainThreadBatchedIncrementalSweep
+      incremental_sweep_batched_events_;
 
   base::Mutex background_counter_mutex_;
   BackgroundCounter background_counter_[Scope::NUMBER_OF_SCOPES];

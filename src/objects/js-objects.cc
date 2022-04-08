@@ -584,7 +584,7 @@ Handle<String> JSReceiver::GetConstructorName(Isolate* isolate,
 MaybeHandle<NativeContext> JSReceiver::GetCreationContext() {
   JSReceiver receiver = *this;
   // Externals are JSObjects with null as a constructor.
-  DCHECK(!receiver.IsExternal(GetIsolate()));
+  DCHECK(!receiver.IsJSExternalObject());
   Object constructor = receiver.map().GetConstructor();
   JSFunction function;
   if (constructor.IsJSFunction()) {
@@ -601,7 +601,7 @@ MaybeHandle<NativeContext> JSReceiver::GetCreationContext() {
   }
 
   return function.has_context()
-             ? Handle<NativeContext>(function.context().native_context(),
+             ? Handle<NativeContext>(function.native_context(),
                                      receiver.GetIsolate())
              : MaybeHandle<NativeContext>();
 }
@@ -629,7 +629,7 @@ MaybeHandle<NativeContext> JSReceiver::GetFunctionRealm(
     }
     if (current.IsJSFunction()) {
       JSFunction function = JSFunction::cast(current);
-      return handle(function.context().native_context(), isolate);
+      return handle(function.native_context(), isolate);
     }
     if (current.IsJSBoundFunction()) {
       JSBoundFunction function = JSBoundFunction::cast(current);
@@ -1203,6 +1203,8 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
     if (!result.is_null()) {
       int32_t value;
       CHECK(result->ToInt32(&value));
+      DCHECK_IMPLIES((value & ~PropertyAttributes::ALL_ATTRIBUTES_MASK) != 0,
+                     value == PropertyAttributes::ABSENT);
       return Just(static_cast<PropertyAttributes>(value));
     }
   } else if (!interceptor->getter().IsUndefined(isolate)) {
@@ -1651,6 +1653,49 @@ Maybe<bool> JSReceiver::CreateDataProperty(LookupIterator* it,
 
   return JSReceiver::DefineOwnProperty(isolate, receiver, it->GetName(),
                                        &new_desc, should_throw);
+}
+
+// static
+Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
+                                        Handle<Object> value,
+                                        Maybe<ShouldThrow> should_throw) {
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
+  Isolate* isolate = receiver->GetIsolate();
+  DCHECK(it->GetName()->IsPrivateName());
+  Handle<Symbol> symbol = Handle<Symbol>::cast(it->GetName());
+
+  switch (it->state()) {
+    case LookupIterator::JSPROXY: {
+      PropertyDescriptor new_desc;
+      new_desc.set_value(value);
+      new_desc.set_writable(true);
+      new_desc.set_enumerable(true);
+      new_desc.set_configurable(true);
+      return JSProxy::SetPrivateSymbol(isolate, Handle<JSProxy>::cast(receiver),
+                                       symbol, &new_desc, should_throw);
+    }
+    case LookupIterator::DATA:
+    case LookupIterator::INTERCEPTOR:
+    case LookupIterator::ACCESSOR:
+    case LookupIterator::INTEGER_INDEXED_EXOTIC:
+      UNREACHABLE();
+
+    case LookupIterator::ACCESS_CHECK: {
+      if (!it->HasAccess()) {
+        it->isolate()->ReportFailedAccessCheck(it->GetHolder<JSObject>());
+        RETURN_VALUE_IF_SCHEDULED_EXCEPTION(it->isolate(), Nothing<bool>());
+        return Just(true);
+      }
+      break;
+    }
+
+    case LookupIterator::TRANSITION:
+    case LookupIterator::NOT_FOUND:
+      break;
+  }
+
+  return Object::TransitionAndWriteDataProperty(it, value, NONE, should_throw,
+                                                StoreOrigin::kMaybeKeyed);
 }
 
 // static
@@ -2342,6 +2387,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSObject::kHeaderSize;
     case JS_ERROR_TYPE:
       return JSObject::kHeaderSize;
+    case JS_EXTERNAL_OBJECT_TYPE:
+      return JSExternalObject::kHeaderSize;
     case JS_SHADOW_REALM_TYPE:
       return JSShadowRealm::kHeaderSize;
     case JS_STRING_ITERATOR_TYPE:
@@ -2826,7 +2873,7 @@ bool JSObject::IsUnmodifiedApiObject(FullObjectSlot o) {
   HeapObject heap_object = HeapObject::cast(object);
   if (!object.IsJSObject()) return false;
   JSObject js_object = JSObject::cast(object);
-  if (!js_object.IsDroppableApiWrapper()) return false;
+  if (!js_object.IsDroppableApiObject()) return false;
   Object maybe_constructor = js_object.map().GetConstructor();
   if (!maybe_constructor.IsJSFunction()) return false;
   JSFunction constructor = JSFunction::cast(maybe_constructor);
@@ -2959,8 +3006,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
   }
 
   int old_number_of_fields;
-  int number_of_fields =
-      new_map->NumberOfFields(ConcurrencyMode::kNotConcurrent);
+  int number_of_fields = new_map->NumberOfFields(ConcurrencyMode::kSynchronous);
   int inobject = new_map->GetInObjectProperties();
   int unused = new_map->UnusedPropertyFields();
 
@@ -2968,7 +3014,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
   // converted to doubles.
   if (!old_map->InstancesNeedRewriting(*new_map, number_of_fields, inobject,
                                        unused, &old_number_of_fields,
-                                       ConcurrencyMode::kNotConcurrent)) {
+                                       ConcurrencyMode::kSynchronous)) {
     object->set_map(*new_map, kReleaseStore);
     return;
   }
@@ -3296,7 +3342,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
     }
     map = MapUpdater{isolate, map}.ReconfigureElementsKind(to_kind);
   }
-  int number_of_fields = map->NumberOfFields(ConcurrencyMode::kNotConcurrent);
+  int number_of_fields = map->NumberOfFields(ConcurrencyMode::kSynchronous);
   int inobject = map->GetInObjectProperties();
   int unused = map->UnusedPropertyFields();
   int total_size = number_of_fields + unused;
@@ -3413,7 +3459,7 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
 Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
     LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
     Maybe<ShouldThrow> should_throw, AccessorInfoHandling handling,
-    EnforceDefineSemantics semantics) {
+    EnforceDefineSemantics semantics, StoreOrigin store_origin) {
   it->UpdateProtector();
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
 
@@ -3466,9 +3512,19 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
           if (can_define.IsNothing() || !can_define.FromJust()) {
             return can_define;
           }
-          it->Restart();
         }
-        break;
+
+        // The interceptor declined to handle the operation, so proceed defining
+        // own property without the interceptor.
+        Isolate* isolate = it->isolate();
+        Handle<Object> receiver = it->GetReceiver();
+        LookupIterator::Configuration c = LookupIterator::OWN_SKIP_INTERCEPTOR;
+        LookupIterator own_lookup =
+            it->IsElement() ? LookupIterator(isolate, receiver, it->index(), c)
+                            : LookupIterator(isolate, receiver, it->name(), c);
+        return JSObject::DefineOwnPropertyIgnoreAttributes(
+            &own_lookup, value, attributes, should_throw, handling, semantics,
+            store_origin);
       }
 
       case LookupIterator::ACCESSOR: {
@@ -3519,7 +3575,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
   }
 
   return Object::AddDataProperty(it, value, attributes, should_throw,
-                                 StoreOrigin::kNamed);
+                                 store_origin, semantics);
 }
 
 MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
@@ -4099,7 +4155,7 @@ void JSObject::ApplyAttributesToDictionary(
       Object v = dictionary->ValueAt(i);
       if (v.IsAccessorPair()) attrs &= ~READ_ONLY;
     }
-    details = details.CopyAddAttributes(static_cast<PropertyAttributes>(attrs));
+    details = details.CopyAddAttributes(PropertyAttributesFromInt(attrs));
     dictionary->DetailsAtPut(i, details);
   }
 }
@@ -4318,6 +4374,14 @@ Handle<Object> JSObject::FastPropertyAt(Isolate* isolate,
                                         Representation representation,
                                         FieldIndex index) {
   Handle<Object> raw_value(object->RawFastPropertyAt(index), isolate);
+  return Object::WrapForRead(isolate, raw_value, representation);
+}
+
+Handle<Object> JSObject::FastPropertyAt(Isolate* isolate,
+                                        Handle<JSObject> object,
+                                        Representation representation,
+                                        FieldIndex index, SeqCstAccessTag tag) {
+  Handle<Object> raw_value(object->RawFastPropertyAt(index, tag), isolate);
   return Object::WrapForRead(isolate, raw_value, representation);
 }
 
@@ -4633,7 +4697,7 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
     if (maybe_constructor.IsJSFunction()) {
       JSFunction constructor = JSFunction::cast(maybe_constructor);
       if (!constructor.shared().IsApiFunction()) {
-        Context context = constructor.context().native_context();
+        Context context = constructor.native_context();
         JSFunction object_function = context.object_function();
         new_map->SetConstructor(object_function);
       }
@@ -5255,26 +5319,6 @@ Maybe<bool> JSObject::HasRealNamedCallbackProperty(Isolate* isolate,
   Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);
   return maybe_result.IsJust() ? Just(it.state() == LookupIterator::ACCESSOR)
                                : Nothing<bool>();
-}
-
-bool JSObject::IsApiWrapper() const {
-  // These object types can carry information relevant for embedders. The
-  // *_API_* types are generated through templates which can have embedder
-  // fields. The other types have their embedder fields added at compile time.
-  auto instance_type = map().instance_type();
-  return instance_type == JS_ARRAY_BUFFER_TYPE ||
-         instance_type == JS_DATA_VIEW_TYPE ||
-         instance_type == JS_GLOBAL_OBJECT_TYPE ||
-         instance_type == JS_GLOBAL_PROXY_TYPE ||
-         instance_type == JS_SPECIAL_API_OBJECT_TYPE ||
-         instance_type == JS_TYPED_ARRAY_TYPE ||
-         InstanceTypeChecker::IsJSApiObject(instance_type);
-}
-
-bool JSObject::IsDroppableApiWrapper() const {
-  auto instance_type = map().instance_type();
-  return InstanceTypeChecker::IsJSApiObject(instance_type) ||
-         instance_type == JS_SPECIAL_API_OBJECT_TYPE;
 }
 
 bool JSGlobalProxy::IsDetached() const {

@@ -33,7 +33,7 @@
 #include "src/objects/string.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/external-pointer.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/snapshot/references.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/shared-heap-serializer.h"
@@ -380,6 +380,14 @@ template bool StringTableInsertionKey::IsMatch(LocalIsolate* isolate,
 
 namespace {
 
+void NoExternalReferencesCallback() {
+  // The following check will trigger if a function or object template
+  // with references to native functions have been deserialized from
+  // snapshot, but no actual external references were provided when the
+  // isolate was created.
+  FATAL("No external references provided via API");
+}
+
 void PostProcessExternalString(ExternalString string, Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   uint32_t index = string.GetResourceRefForDeserialization();
@@ -552,7 +560,7 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
   } else if (InstanceTypeChecker::IsBytecodeArray(instance_type)) {
     // TODO(mythria): Remove these once we store the default values for these
     // fields in the serializer.
-    BytecodeArray::cast(raw_obj).set_osr_loop_nesting_level(0);
+    BytecodeArray::cast(raw_obj).reset_osr_urgency();
   } else if (InstanceTypeChecker::IsDescriptorArray(instance_type)) {
     DCHECK(InstanceTypeChecker::IsStrongDescriptorArray(instance_type));
     Handle<DescriptorArray> descriptors = Handle<DescriptorArray>::cast(obj);
@@ -674,7 +682,8 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 #ifdef DEBUG
   PtrComprCageBase cage_base(isolate());
   // We want to make sure that all embedder pointers are initialized to null.
-  if (raw_obj.IsJSObject(cage_base) && JSObject::cast(raw_obj).IsApiWrapper()) {
+  if (raw_obj.IsJSObject(cage_base) &&
+      JSObject::cast(raw_obj).MayHaveEmbedderFields()) {
     JSObject js_obj = JSObject::cast(raw_obj);
     for (int i = 0; i < js_obj.GetEmbedderFieldCount(); ++i) {
       void* pointer;
@@ -859,14 +868,6 @@ int Deserializer<IsolateT>::ReadRepeatedObject(SlotAccessor slot_accessor,
 
 namespace {
 
-void NoExternalReferencesCallback() {
-  // The following check will trigger if a function or object template
-  // with references to native functions have been deserialized from
-  // snapshot, but no actual external references were provided when the
-  // isolate was created.
-  FATAL("No external references provided via API");
-}
-
 // Template used by the below CASE_RANGE macro to statically verify that the
 // given number of cases matches the number of expected cases for that bytecode.
 template <int byte_code_count, int expected>
@@ -1020,8 +1021,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       Address address = ReadExternalReferenceCase();
       if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL &&
           data == kSandboxedExternalReference) {
-        return WriteExternalPointer(slot_accessor.slot(), address,
-                                    kForeignForeignAddressTag);
+        ExternalPointerTag tag = ReadExternalPointerTag();
+        return WriteExternalPointer(slot_accessor.slot(), address, tag);
       } else {
         DCHECK(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
         return WriteAddress(slot_accessor.slot(), address);
@@ -1159,11 +1160,28 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       return ReadRepeatedObject(slot_accessor, repeats);
     }
 
-    case kOffHeapBackingStore: {
+    case kOffHeapBackingStore:
+    case kOffHeapResizableBackingStore: {
       int byte_length = source_.GetInt();
-      std::unique_ptr<BackingStore> backing_store = BackingStore::Allocate(
-          main_thread_isolate(), byte_length, SharedFlag::kNotShared,
-          InitializedFlag::kUninitialized);
+      std::unique_ptr<BackingStore> backing_store;
+      if (data == kOffHeapBackingStore) {
+        backing_store = BackingStore::Allocate(
+            main_thread_isolate(), byte_length, SharedFlag::kNotShared,
+            InitializedFlag::kUninitialized);
+      } else {
+        int max_byte_length = source_.GetInt();
+        size_t page_size, initial_pages, max_pages;
+        Maybe<bool> result =
+            JSArrayBuffer::GetResizableBackingStorePageConfiguration(
+                nullptr, byte_length, max_byte_length, kDontThrow, &page_size,
+                &initial_pages, &max_pages);
+        DCHECK(result.FromJust());
+        USE(result);
+        constexpr bool kIsWasmMemory = false;
+        backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
+            main_thread_isolate(), byte_length, max_byte_length, page_size,
+            initial_pages, max_pages, kIsWasmMemory, SharedFlag::kNotShared);
+      }
       CHECK_NOT_NULL(backing_store);
       source_.CopyRaw(backing_store->buffer_start(), byte_length);
       backing_stores_.push_back(std::move(backing_store));
@@ -1184,8 +1202,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       }
       if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL &&
           data == kSandboxedApiReference) {
-        return WriteExternalPointer(slot_accessor.slot(), address,
-                                    kForeignForeignAddressTag);
+        ExternalPointerTag tag = ReadExternalPointerTag();
+        return WriteExternalPointer(slot_accessor.slot(), address, tag);
       } else {
         DCHECK(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
         return WriteAddress(slot_accessor.slot(), address);
@@ -1275,6 +1293,13 @@ Address Deserializer<IsolateT>::ReadExternalReferenceCase() {
   uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
   return main_thread_isolate()->external_reference_table()->address(
       reference_id);
+}
+
+template <typename IsolateT>
+ExternalPointerTag Deserializer<IsolateT>::ReadExternalPointerTag() {
+  uint64_t shifted_tag = static_cast<uint64_t>(source_.GetInt());
+  return static_cast<ExternalPointerTag>(shifted_tag
+                                         << kExternalPointerTagShift);
 }
 
 template <typename IsolateT>

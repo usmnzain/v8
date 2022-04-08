@@ -55,7 +55,7 @@ inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
 //   1   | return addr (lr)   |
 //   0   | previous frame (fp)|
 //  -----+--------------------+  <-- frame ptr (fp)
-//  -1   | 0xa: WASM          |
+//  -1   | StackFrame::WASM   |
 //  -2   |     instance       |
 //  -3   |     feedback vector|
 //  -4   |     tiering budget |
@@ -98,13 +98,13 @@ inline CPURegister GetRegFromType(const LiftoffRegister& reg, ValueKind kind) {
 }
 
 inline CPURegList PadRegList(RegList list) {
-  if ((base::bits::CountPopulation(list) & 1) != 0) list |= padreg.bit();
-  return CPURegList(CPURegister::kRegister, kXRegSizeInBits, list);
+  if ((list.Count() & 1) != 0) list.set(padreg);
+  return CPURegList(kXRegSizeInBits, list);
 }
 
-inline CPURegList PadVRegList(RegList list) {
-  if ((base::bits::CountPopulation(list) & 1) != 0) list |= fp_scratch.bit();
-  return CPURegList(CPURegister::kVRegister, kQRegSizeInBits, list);
+inline CPURegList PadVRegList(DoubleRegList list) {
+  if ((list.Count() & 1) != 0) list.set(fp_scratch);
+  return CPURegList(kQRegSizeInBits, list);
 }
 
 inline CPURegister AcquireByType(UseScratchRegisterScope* temps,
@@ -636,8 +636,7 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
                         Register offset_reg, uintptr_t offset_imm,
                         LiftoffRegister value, LiftoffRegister result,
                         StoreType type, Binop op) {
-  LiftoffRegList pinned =
-      LiftoffRegList::ForRegs(dst_addr, offset_reg, value, result);
+  LiftoffRegList pinned = {dst_addr, offset_reg, value, result};
   Register store_result = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
 
   // {LiftoffCompiler::AtomicBinop} ensures that {result} is unique.
@@ -823,8 +822,7 @@ void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type) {
-  LiftoffRegList pinned =
-      LiftoffRegList::ForRegs(dst_addr, offset_reg, expected, new_value);
+  LiftoffRegList pinned = {dst_addr, offset_reg, expected, new_value};
 
   Register result_reg = result.gp();
   if (pinned.has(result)) {
@@ -2511,7 +2509,7 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
   VRegister temp = dst.fp();
   if (dst == lhs || dst == rhs) {
     // dst overlaps with lhs or rhs, so we need a temporary.
-    temp = GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(lhs, rhs)).fp();
+    temp = GetUnusedRegister(kFpReg, LiftoffRegList{lhs, rhs}).fp();
   }
 
   UseScratchRegisterScope scope(this);
@@ -3135,8 +3133,7 @@ void LiftoffAssembler::RecordSpillsInSafepoint(
     SafepointTableBuilder::Safepoint& safepoint, LiftoffRegList all_spills,
     LiftoffRegList ref_spills, int spill_offset) {
   int spill_space_size = 0;
-  bool needs_padding =
-      (base::bits::CountPopulation(all_spills.GetGpList()) & 1) != 0;
+  bool needs_padding = (all_spills.GetGpList().Count() & 1) != 0;
   if (needs_padding) {
     spill_space_size += kSystemPointerSize;
     ++spill_offset;

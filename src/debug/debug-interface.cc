@@ -9,12 +9,14 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/script-details.h"
+#include "src/date/date.h"
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-property-iterator.h"
 #include "src/debug/debug-type-profile.h"
 #include "src/debug/debug.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/heap/heap.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/strings/string-builder-inl.h"
@@ -46,6 +48,17 @@ void SetInspector(Isolate* isolate, v8_inspector::V8Inspector* inspector) {
 
 v8_inspector::V8Inspector* GetInspector(Isolate* isolate) {
   return reinterpret_cast<i::Isolate*>(isolate)->inspector();
+}
+
+Local<String> GetDateDescription(Local<Date> date) {
+  auto receiver = Utils::OpenHandle(*date);
+  i::Handle<i::JSDate> jsdate = i::Handle<i::JSDate>::cast(receiver);
+  i::Isolate* isolate = jsdate->GetIsolate();
+  auto buffer = i::ToDateString(jsdate->value().Number(), isolate->date_cache(),
+                                i::ToDateStringMode::kLocalDateAndTime);
+  return Utils::ToLocal(isolate->factory()
+                            ->NewStringFromUtf8(base::VectorOf(buffer))
+                            .ToHandleChecked());
 }
 
 Local<String> GetFunctionDescription(Local<Function> function) {
@@ -613,8 +626,9 @@ Platform* GetCurrentPlatform() { return i::V8::GetCurrentPlatform(); }
 void ForceGarbageCollection(
     Isolate* isolate,
     EmbedderHeapTracer::EmbedderStackState embedder_stack_state) {
-  i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-  heap->SetEmbedderStackStateForNextFinalization(embedder_stack_state);
+  i::EmbedderStackStateScope stack_scope(
+      reinterpret_cast<i::Isolate*>(isolate)->heap(),
+      i::EmbedderStackStateScope::kImplicitThroughTask, embedder_stack_state);
   isolate->LowMemoryNotification();
 }
 

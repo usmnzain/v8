@@ -45,12 +45,7 @@ namespace internal {
 #define BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM) \
   /* Deoptimization entries. */                               \
   ASM(DeoptimizationEntry_Eager, DeoptimizationEntry)         \
-  ASM(DeoptimizationEntry_Soft, DeoptimizationEntry)          \
-  ASM(DeoptimizationEntry_Bailout, DeoptimizationEntry)       \
   ASM(DeoptimizationEntry_Lazy, DeoptimizationEntry)          \
-  ASM(DynamicCheckMapsTrampoline, DynamicCheckMaps)           \
-  ASM(DynamicCheckMapsWithFeedbackVectorTrampoline,           \
-      DynamicCheckMapsWithFeedbackVector)                     \
                                                               \
   /* GC write barrier. */                                     \
   TFC(RecordWriteEmitRememberedSetSaveFP, WriteBarrier)       \
@@ -169,7 +164,6 @@ namespace internal {
   ASM(ResumeGeneratorTrampoline, ResumeGenerator)                              \
                                                                                \
   /* String helpers */                                                         \
-  TFC(StringCodePointAt, StringAt)                                             \
   TFC(StringFromCodePointAt, StringAtAsString)                                 \
   TFC(StringEqual, Compare)                                                    \
   TFC(StringGreaterThan, Compare)                                              \
@@ -275,7 +269,7 @@ namespace internal {
   /* Handlers */                                                               \
   TFH(KeyedLoadIC_PolymorphicName, LoadWithVector)                             \
   TFH(KeyedStoreIC_Megamorphic, Store)                                         \
-  TFH(KeyedDefineOwnIC_Megamorphic, Store)                                     \
+  TFH(DefineKeyedOwnIC_Megamorphic, Store)                                     \
   TFH(LoadGlobalIC_NoFeedback, LoadGlobalNoFeedback)                           \
   TFH(LoadIC_FunctionPrototype, LoadWithVector)                                \
   TFH(LoadIC_StringLength, LoadWithVector)                                     \
@@ -283,7 +277,7 @@ namespace internal {
   TFH(LoadIC_NoFeedback, LoadNoFeedback)                                       \
   TFH(StoreGlobalIC_Slow, StoreWithVector)                                     \
   TFH(StoreIC_NoFeedback, Store)                                               \
-  TFH(StoreOwnIC_NoFeedback, Store)                                            \
+  TFH(DefineNamedOwnIC_NoFeedback, Store)                                      \
   TFH(KeyedLoadIC_SloppyArguments, LoadWithVector)                             \
   TFH(LoadIndexedInterceptorIC, LoadWithVector)                                \
   TFH(KeyedStoreIC_SloppyArguments_Standard, StoreWithVector)                  \
@@ -301,10 +295,6 @@ namespace internal {
   TFH(KeyedHasIC_PolymorphicName, LoadWithVector)                              \
   TFH(KeyedHasIC_SloppyArguments, LoadWithVector)                              \
   TFH(HasIndexedInterceptorIC, LoadWithVector)                                 \
-                                                                               \
-  /* Dynamic check maps */                                                     \
-  TFC(DynamicCheckMaps, DynamicCheckMaps)                                      \
-  TFC(DynamicCheckMapsWithFeedbackVector, DynamicCheckMapsWithFeedbackVector)  \
                                                                                \
   /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, kMicrotask)                                            \
@@ -641,15 +631,15 @@ namespace internal {
   TFH(StoreIC, StoreWithVector)                                                \
   TFH(StoreICTrampoline, Store)                                                \
   TFH(StoreICBaseline, StoreBaseline)                                          \
-  TFH(StoreOwnIC, StoreWithVector)                                             \
-  TFH(StoreOwnICTrampoline, Store)                                             \
-  TFH(StoreOwnICBaseline, StoreBaseline)                                       \
+  TFH(DefineNamedOwnIC, StoreWithVector)                                       \
+  TFH(DefineNamedOwnICTrampoline, Store)                                       \
+  TFH(DefineNamedOwnICBaseline, StoreBaseline)                                 \
   TFH(KeyedStoreIC, StoreWithVector)                                           \
   TFH(KeyedStoreICTrampoline, Store)                                           \
   TFH(KeyedStoreICBaseline, StoreBaseline)                                     \
-  TFH(KeyedDefineOwnIC, StoreWithVector)                                       \
-  TFH(KeyedDefineOwnICTrampoline, Store)                                       \
-  TFH(KeyedDefineOwnICBaseline, StoreBaseline)                                 \
+  TFH(DefineKeyedOwnIC, StoreWithVector)                                       \
+  TFH(DefineKeyedOwnICTrampoline, Store)                                       \
+  TFH(DefineKeyedOwnICBaseline, StoreBaseline)                                 \
   TFH(StoreInArrayLiteralIC, StoreWithVector)                                  \
   TFH(StoreInArrayLiteralICBaseline, StoreBaseline)                            \
   TFH(LookupContextBaseline, LookupBaseline)                                   \
@@ -878,9 +868,9 @@ namespace internal {
                                                                                \
   /* ShadowRealm */                                                            \
   CPP(ShadowRealmConstructor)                                                  \
+  TFS(ShadowRealmGetWrappedValue, kCreationContext, kTargetContext, kValue)    \
   CPP(ShadowRealmPrototypeEvaluate)                                            \
   CPP(ShadowRealmPrototypeImportValue)                                         \
-  TFS(ShadowRealmGetWrappedValue, kCreationContext, kValue)                    \
                                                                                \
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \
@@ -888,11 +878,12 @@ namespace internal {
   /* https://tc39.es/proposal-resizablearraybuffer/ */                         \
   CPP(SharedArrayBufferPrototypeGrow)                                          \
                                                                                \
-  TFJ(AtomicsLoad, kJSArgcReceiverSlots + 2, kReceiver, kArray, kIndex)        \
-  TFJ(AtomicsStore, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex,       \
-      kValue)                                                                  \
-  TFJ(AtomicsExchange, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex,    \
-      kValue)                                                                  \
+  TFJ(AtomicsLoad, kJSArgcReceiverSlots + 2, kReceiver, kArrayOrSharedStruct,  \
+      kIndexOrFieldName)                                                       \
+  TFJ(AtomicsStore, kJSArgcReceiverSlots + 3, kReceiver, kArrayOrSharedStruct, \
+      kIndexOrFieldName, kValue)                                               \
+  TFJ(AtomicsExchange, kJSArgcReceiverSlots + 3, kReceiver,                    \
+      kArrayOrSharedStruct, kIndexOrFieldName, kValue)                         \
   TFJ(AtomicsCompareExchange, kJSArgcReceiverSlots + 4, kReceiver, kArray,     \
       kIndex, kOldValue, kNewValue)                                            \
   TFJ(AtomicsAdd, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex, kValue) \
@@ -1070,7 +1061,7 @@ namespace internal {
   TFC(GetProperty, GetProperty)                                                \
   TFS(GetPropertyWithReceiver, kObject, kKey, kReceiver, kOnNonExistent)       \
   TFS(SetProperty, kReceiver, kKey, kValue)                                    \
-  TFS(SetPropertyInLiteral, kReceiver, kKey, kValue)                           \
+  TFS(CreateDataProperty, kReceiver, kKey, kValue)                             \
   ASM(MemCopyUint8Uint8, CCall)                                                \
   ASM(MemMove, CCall)                                                          \
                                                                                \
@@ -1788,6 +1779,8 @@ namespace internal {
   CPP(PluralRulesPrototypeResolvedOptions)                             \
   /* ecma402 #sec-intl.pluralrules.prototype.select */                 \
   CPP(PluralRulesPrototypeSelect)                                      \
+  /* ecma402 #sec-intl.pluralrules.prototype.selectrange */            \
+  CPP(PluralRulesPrototypeSelectRange)                                 \
   /* ecma402 #sec-intl.pluralrules.supportedlocalesof */               \
   CPP(PluralRulesSupportedLocalesOf)                                   \
   /* ecma402 #sec-intl.RelativeTimeFormat.constructor */               \

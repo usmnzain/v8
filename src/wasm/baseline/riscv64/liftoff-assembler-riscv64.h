@@ -55,7 +55,7 @@ inline constexpr Condition ToCondition(LiftoffCondition liftoff_cond) {
 //   1   | return addr (ra)   |
 //   0   | previous frame (fp)|
 //  -----+--------------------+  <-- frame ptr (fp)
-//  -1   | 0xa: WASM          |
+//  -1   | StackFrame::WASM   |
 //  -2   |     instance       |
 //  -3   |     feedback vector|
 //  -4   |     tiering budget |
@@ -657,8 +657,7 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
                         Register offset_reg, uintptr_t offset_imm,
                         LiftoffRegister value, LiftoffRegister result,
                         StoreType type, Binop op) {
-  LiftoffRegList pinned =
-      LiftoffRegList::ForRegs(dst_addr, offset_reg, value, result);
+  LiftoffRegList pinned = {dst_addr, offset_reg, value, result};
   Register store_result = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
 
   // Make sure that {result} is unique.
@@ -869,8 +868,7 @@ void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type) {
-  LiftoffRegList pinned =
-      LiftoffRegList::ForRegs(dst_addr, offset_reg, expected, new_value);
+  LiftoffRegList pinned = {dst_addr, offset_reg, expected, new_value};
 
   Register result_reg = result.gp();
   if (pinned.has(result)) {
@@ -1300,23 +1298,41 @@ I64_BINOP_I(xor, Xor)
       LiftoffRegister dst, LiftoffRegister src, Register amount) { \
     instruction(dst.gp(), src.gp(), amount);                       \
   }
-#define I64_SHIFTOP_I(name, instruction)                                       \
-  void LiftoffAssembler::emit_i64_##name##i(LiftoffRegister dst,               \
-                                            LiftoffRegister src, int amount) { \
-    DCHECK(is_uint6(amount));                                                  \
-    instruction(dst.gp(), src.gp(), amount);                                   \
-  }
 
 I64_SHIFTOP(shl, sll)
 I64_SHIFTOP(sar, sra)
 I64_SHIFTOP(shr, srl)
-
-I64_SHIFTOP_I(shl, slli)
-I64_SHIFTOP_I(sar, srai)
-I64_SHIFTOP_I(shr, srli)
-
 #undef I64_SHIFTOP
-#undef I64_SHIFTOP_I
+
+void LiftoffAssembler::emit_i64_shli(LiftoffRegister dst, LiftoffRegister src,
+                                     int amount) {
+  if (is_uint6(amount)) {
+    slli(dst.gp(), src.gp(), amount);
+  } else {
+    li(kScratchReg, amount);
+    sll(dst.gp(), src.gp(), kScratchReg);
+  }
+}
+
+void LiftoffAssembler::emit_i64_sari(LiftoffRegister dst, LiftoffRegister src,
+                                     int amount) {
+  if (is_uint6(amount)) {
+    srai(dst.gp(), src.gp(), amount);
+  } else {
+    li(kScratchReg, amount);
+    sra(dst.gp(), src.gp(), kScratchReg);
+  }
+}
+
+void LiftoffAssembler::emit_i64_shri(LiftoffRegister dst, LiftoffRegister src,
+                                     int amount) {
+  if (is_uint6(amount)) {
+    srli(dst.gp(), src.gp(), amount);
+  } else {
+    li(kScratchReg, amount);
+    srl(dst.gp(), src.gp(), kScratchReg);
+  }
+}
 
 void LiftoffAssembler::emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
                                      int64_t imm) {
@@ -1848,7 +1864,7 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
 
   VU.set(kScratchReg, E8, m1);
   VRegister temp =
-      GetUnusedRegister(kFpReg, LiftoffRegList::ForRegs(lhs, rhs)).fp().toV();
+      GetUnusedRegister(kFpReg, LiftoffRegList{lhs, rhs}).fp().toV();
   if (dst_v == lhs_v) {
     vmv_vv(temp, lhs_v);
     lhs_v = temp;

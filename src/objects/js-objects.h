@@ -175,6 +175,13 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       LookupIterator* it, Handle<Object> value,
       Maybe<ShouldThrow> should_throw);
 
+  // Add private fields to the receiver, ignoring extensibility and the
+  // traps. The caller should check that the private field does not already
+  // exist on the receiver before calling this method.
+  V8_WARN_UNUSED_RESULT static Maybe<bool> AddPrivateField(
+      LookupIterator* it, Handle<Object> value,
+      Maybe<ShouldThrow> should_throw);
+
   // ES6 9.1.6.1
   V8_WARN_UNUSED_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
       Isolate* isolate, Handle<JSObject> object, Handle<Object> key,
@@ -409,16 +416,6 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // to the default behavior that calls the setter.
   enum AccessorInfoHandling { FORCE_FIELD, DONT_FORCE_FIELD };
 
-  // Currently DefineOwnPropertyIgnoreAttributes invokes the setter
-  // interceptor and user-defined setters during define operations,
-  // even in places where it makes more sense to invoke the definer
-  // interceptor and not invoke the setter: e.g. both the definer and
-  // the setter interceptors are called in Object.defineProperty().
-  // kDefine allows us to implement the define semantics correctly
-  // in selected locations.
-  // TODO(joyee): see if we can deprecate the old behavior.
-  enum class EnforceDefineSemantics { kSet, kDefine };
-
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
   DefineOwnPropertyIgnoreAttributes(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
@@ -429,7 +426,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       Maybe<ShouldThrow> should_throw,
       AccessorInfoHandling handling = DONT_FORCE_FIELD,
-      EnforceDefineSemantics semantics = EnforceDefineSemantics::kSet);
+      EnforceDefineSemantics semantics = EnforceDefineSemantics::kSet,
+      StoreOrigin store_origin = StoreOrigin::kNamed);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> V8_EXPORT_PRIVATE
   SetOwnPropertyIgnoreAttributes(Handle<JSObject> object, Handle<Name> name,
@@ -605,6 +603,9 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
       InstanceType instance_type, bool function_has_prototype_slot = false);
   static inline int GetHeaderSize(Map map);
 
+  static inline bool MayHaveEmbedderFields(Map map);
+  inline bool MayHaveEmbedderFields() const;
+
   static inline int GetEmbedderFieldsStartOffset(Map map);
   inline int GetEmbedderFieldsStartOffset();
 
@@ -615,14 +616,9 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   inline void SetEmbedderField(int index, Object value);
   inline void SetEmbedderField(int index, Smi value);
 
-  // Returns true when the object is potentially a wrapper that gets special
-  // garbage collection treatment.
-  // TODO(mlippautz): Make check exact and replace the pattern match in
-  // Heap::TracePossibleWrapper.
-  V8_EXPORT_PRIVATE bool IsApiWrapper() const;
-
-  // Same as IsApiWrapper() but also allow dropping the wrapper on minor GCs.
-  bool IsDroppableApiWrapper() const;
+  // Returns true if this object is an Api object which can, if unmodified, be
+  // dropped during minor GC because the embedder can recreate it again later.
+  inline bool IsDroppableApiObject() const;
 
   // Returns a new map with all transitions dropped from the object's current
   // map and the ElementsKind set.
@@ -679,9 +675,16 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                        Handle<JSObject> object,
                                        Representation representation,
                                        FieldIndex index);
+  static Handle<Object> FastPropertyAt(Isolate* isolate,
+                                       Handle<JSObject> object,
+                                       Representation representation,
+                                       FieldIndex index, SeqCstAccessTag tag);
   inline Object RawFastPropertyAt(FieldIndex index) const;
   inline Object RawFastPropertyAt(PtrComprCageBase cage_base,
                                   FieldIndex index) const;
+  inline Object RawFastPropertyAt(FieldIndex index, SeqCstAccessTag tag) const;
+  inline Object RawFastPropertyAt(PtrComprCageBase cage_base, FieldIndex index,
+                                  SeqCstAccessTag tag) const;
 
   // See comment in the body of the method to understand the conditions
   // in which this method is meant to be used, and what guarantees it
@@ -692,11 +695,21 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 
   inline void FastPropertyAtPut(FieldIndex index, Object value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void FastPropertyAtPut(FieldIndex index, Object value,
+                                SeqCstAccessTag tag);
   inline void RawFastInobjectPropertyAtPut(
       FieldIndex index, Object value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void RawFastInobjectPropertyAtPut(FieldIndex index, Object value,
+                                           SeqCstAccessTag tag);
   inline void WriteToField(InternalIndex descriptor, PropertyDetails details,
                            Object value);
+
+  inline Object RawFastPropertyAtSwap(FieldIndex index, Object value,
+                                      SeqCstAccessTag tag);
+  inline Object RawFastPropertyAtSwap(PtrComprCageBase cage_base,
+                                      FieldIndex index, Object value,
+                                      SeqCstAccessTag tag);
 
   // Access to in object properties.
   inline int GetInObjectPropertyOffset(int index);
@@ -879,6 +892,35 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   TQ_OBJECT_CONSTRUCTORS(JSObject)
 };
 
+// A JSObject created through the public api which wraps an external pointer.
+// See v8::External.
+class JSExternalObject
+    : public TorqueGeneratedJSExternalObject<JSExternalObject, JSObject> {
+ public:
+  inline void AllocateExternalPointerEntries(Isolate* isolate);
+
+  // [value]: field containing the pointer value.
+  DECL_GETTER(value, void*)
+
+  inline void set_value(Isolate* isolate, void* value);
+
+  static constexpr int kEndOfTaggedFieldsOffset = JSObject::kHeaderSize;
+
+  class BodyDescriptor;
+
+ private:
+  TQ_OBJECT_CONSTRUCTORS(JSExternalObject)
+};
+
+// An abstract superclass for JSObjects that may contain EmbedderDataSlots.
+class JSObjectWithEmbedderSlots
+    : public TorqueGeneratedJSObjectWithEmbedderSlots<JSObjectWithEmbedderSlots,
+                                                      JSObject> {
+ public:
+  STATIC_ASSERT(kHeaderSize == JSObject::kHeaderSize);
+  TQ_OBJECT_CONSTRUCTORS(JSObjectWithEmbedderSlots)
+};
+
 // An abstract superclass for JSObjects that may have elements while having an
 // empty fixed array as elements backing store. It doesn't carry any
 // functionality but allows function classes to be identified in the type
@@ -894,6 +936,8 @@ class JSCustomElementsObject
 // An abstract superclass for JSObjects that require non-standard element
 // access. It doesn't carry any functionality but allows function classes to be
 // identified in the type system.
+// These may also contain EmbedderDataSlots, but can't currently inherit from
+// JSObjectWithEmbedderSlots due to instance_type constraints.
 class JSSpecialObject
     : public TorqueGeneratedJSSpecialObject<JSSpecialObject,
                                             JSCustomElementsObject> {

@@ -436,6 +436,22 @@ class JSDataView::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class JSExternalObject::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) { return false; }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
+    v->VisitExternalPointer(obj, obj.RawExternalPointerField(kValueOffset));
+  }
+
+  static inline int SizeOf(Map map, HeapObject object) {
+    return map.instance_size();
+  }
+};
+
 template <typename Derived>
 class V8_EXPORT_PRIVATE SmallOrderedHashTable<Derived>::BodyDescriptor final
     : public BodyDescriptorBase {
@@ -587,6 +603,25 @@ class PreparseData::BodyDescriptor final : public BodyDescriptorBase {
   static inline int SizeOf(Map map, HeapObject obj) {
     PreparseData data = PreparseData::cast(obj);
     return PreparseData::SizeFor(data.data_length(), data.children_length());
+  }
+};
+
+class PromiseOnStack::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    return offset >= HeapObject::kHeaderSize;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, Struct::kHeaderSize, kPromiseOffset, v);
+    IterateMaybeWeakPointer(obj, kPromiseOffset, v);
+    STATIC_ASSERT(kPromiseOffset + kTaggedSize == kHeaderSize);
+  }
+
+  static inline int SizeOf(Map map, HeapObject obj) {
+    return obj.SizeFromMap(map);
   }
 };
 
@@ -1211,6 +1246,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(JSDataView);
     case JS_TYPED_ARRAY_TYPE:
       return CALL_APPLY(JSTypedArray);
+    case JS_EXTERNAL_OBJECT_TYPE:
+      return CALL_APPLY(JSExternalObject);
     case WEAK_CELL_TYPE:
       return CALL_APPLY(WeakCell);
     case JS_WEAK_REF_TYPE:

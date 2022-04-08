@@ -23,7 +23,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/visitors.h"
-#include "src/snapshot/embedded/embedded-data.h"
+#include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/strings/string-stream.h"
 #include "src/zone/zone-containers.h"
 
@@ -1608,7 +1608,7 @@ Handle<Object> FrameSummary::JavaScriptFrameSummary::script() const {
 }
 
 Handle<Context> FrameSummary::JavaScriptFrameSummary::native_context() const {
-  return handle(function_->context().native_context(), isolate());
+  return handle(function_->native_context(), isolate());
 }
 
 Handle<StackFrameInfo>
@@ -2053,7 +2053,7 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
     return;
   }
   wasm::WasmCodeRefScope code_ref_scope;
-  accumulator->Add("WASM [");
+  accumulator->Add("Wasm [");
   accumulator->PrintName(script().name());
   Address instruction_start = wasm_code()->instruction_start();
   base::Vector<const uint8_t> raw_func_name =
@@ -2180,7 +2180,7 @@ void WasmDebugBreakFrame::Iterate(RootVisitor* v) const {
 void WasmDebugBreakFrame::Print(StringStream* accumulator, PrintMode mode,
                                 int index) const {
   PrintIndex(accumulator, mode, index);
-  accumulator->Add("WASM DEBUG BREAK");
+  accumulator->Add("WasmDebugBreak");
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
 

@@ -527,7 +527,7 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_MAP(JS_MESSAGE_OBJECT_TYPE, JSMessageObject::kHeaderSize,
                  message_object)
-    ALLOCATE_MAP(JS_OBJECT_TYPE, JSObject::kHeaderSize + kEmbedderDataSlotSize,
+    ALLOCATE_MAP(JS_EXTERNAL_OBJECT_TYPE, JSExternalObject::kHeaderSize,
                  external)
     external_map().set_is_extensible(false);
 #undef ALLOCATE_PRIMITIVE_MAP
@@ -829,6 +829,7 @@ void Heap::CreateInitialObjects() {
 #ifdef V8_ENABLE_WEBASSEMBLY
   set_active_continuation(roots.undefined_value());
   set_active_suspender(roots.undefined_value());
+  set_wasm_canonical_rtts(roots.empty_weak_array_list());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   set_script_list(roots.empty_weak_array_list());

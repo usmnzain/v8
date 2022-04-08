@@ -783,6 +783,12 @@ class Heap {
         std::min(max_old_generation_size(), std::max(heap_limit, min_limit)));
   }
 
+#if V8_ENABLE_WEBASSEMBLY
+  // TODO(manoskouk): Inline this if STRONG_MUTABLE_MOVABLE_ROOT_LIST setters
+  // become public.
+  void EnsureWasmCanonicalRttsSize(int length);
+#endif
+
   // ===========================================================================
   // Initialization. ===========================================================
   // ===========================================================================
@@ -807,6 +813,9 @@ class Heap {
 
   // (Re-)Initialize hash seed from flag or RNG.
   void InitializeHashSeed();
+
+  // Invoked once for the process from V8::Initialize.
+  static void InitializeOncePerProcess();
 
   // Bootstraps the object heap with the core set of objects required to run.
   // Returns whether it succeeded.
@@ -1146,8 +1155,6 @@ class Heap {
   EmbedderHeapTracer* GetEmbedderHeapTracer() const;
 
   void RegisterExternallyReferencedObject(Address* location);
-  V8_EXPORT_PRIVATE void SetEmbedderStackStateForNextFinalization(
-      EmbedderHeapTracer::EmbedderStackState stack_state);
 
   EmbedderHeapTracer::TraceFlags flags_for_embedder_tracer() const;
 
@@ -1582,13 +1589,14 @@ class Heap {
 #ifdef DEBUG
   void VerifyCountersAfterSweeping();
   void VerifyCountersBeforeConcurrentSweeping();
+  void VerifyCommittedPhysicalMemory();
 
   void Print();
   void PrintHandles();
 
   // Report code statistics.
   void ReportCodeStatistics(const char* title);
-#endif
+#endif  // DEBUG
   void* GetRandomMmapAddr() {
     void* result = v8::internal::GetRandomMmapAddr();
 #if V8_TARGET_ARCH_X64
@@ -2429,6 +2437,7 @@ class Heap {
   friend class ScavengeTaskObserver;
   friend class IgnoreLocalGCRequests;
   friend class IncrementalMarking;
+  friend class IncrementalMarkingRootMarkingVisitor;
   friend class IncrementalMarkingJob;
   friend class LargeObjectSpace;
   friend class LocalHeap;
@@ -2557,9 +2566,8 @@ class V8_NODISCARD CodeSpaceMemoryModificationScope {
   Heap* heap_;
 };
 
-// The CodePageCollectionMemoryModificationScope can only be used by the main
-// thread. It will not be enabled if a CodeSpaceMemoryModificationScope is
-// already active.
+// The CodePageCollectionMemoryModificationScope can be used by any thread. It
+// will not be enabled if a CodeSpaceMemoryModificationScope is already active.
 class V8_NODISCARD CodePageCollectionMemoryModificationScope {
  public:
   explicit inline CodePageCollectionMemoryModificationScope(Heap* heap);
@@ -2769,6 +2777,30 @@ struct StrongRootBlockAllocator::rebind {
     // NOLINTNEXTLINE
     other(const StrongRootBlockAllocator&) {}
   };
+};
+
+class V8_EXPORT_PRIVATE V8_NODISCARD EmbedderStackStateScope final {
+ public:
+  enum Origin {
+    kImplicitThroughTask,
+    kExplicitInvocation,
+  };
+
+  // Only used for testing where the Origin is always an explicit invocation.
+  static EmbedderStackStateScope ExplicitScopeForTesting(
+      LocalEmbedderHeapTracer* local_tracer,
+      EmbedderHeapTracer::EmbedderStackState stack_state);
+
+  EmbedderStackStateScope(Heap* heap, Origin origin,
+                          EmbedderHeapTracer::EmbedderStackState stack_state);
+  ~EmbedderStackStateScope();
+
+ private:
+  EmbedderStackStateScope(LocalEmbedderHeapTracer* local_tracer,
+                          EmbedderHeapTracer::EmbedderStackState stack_state);
+
+  LocalEmbedderHeapTracer* const local_tracer_;
+  const EmbedderHeapTracer::EmbedderStackState old_stack_state_;
 };
 
 }  // namespace internal

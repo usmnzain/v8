@@ -57,7 +57,7 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   answer |= 1u << FPU;
 #endif  // def CAN_USE_FPU_INSTRUCTIONS
 
-#if (defined CAN_USE_RVV_INSTRUCTIONS) || (defined USE_SIMULATOR)
+#if (defined CAN_USE_RVV_INSTRUCTIONS)
   answer |= 1u << RISCV_SIMD;
 #endif  // def CAN_USE_RVV_INSTRUCTIONS || USE_SIMULATOR
   return answer;
@@ -214,7 +214,7 @@ Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
       VU(this),
-      scratch_register_list_(t3.bit() | t5.bit()),
+      scratch_register_list_({t3, t5}),
       constpool_(this) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
@@ -3928,14 +3928,17 @@ UseScratchRegisterScope::~UseScratchRegisterScope() {
 
 Register UseScratchRegisterScope::Acquire() {
   DCHECK_NOT_NULL(available_);
-  DCHECK_NE(*available_, 0);
-  int index = static_cast<int>(base::bits::CountTrailingZeros32(*available_));
-  *available_ &= ~(1UL << index);
+  DCHECK(!available_->is_empty());
+  int index =
+      static_cast<int>(base::bits::CountTrailingZeros32(available_->bits()));
+  *available_ &= RegList::FromBits(~(1U << index));
 
   return Register::from_code(index);
 }
 
-bool UseScratchRegisterScope::hasAvailable() const { return *available_ != 0; }
+bool UseScratchRegisterScope::hasAvailable() const {
+  return !available_->is_empty();
+}
 
 bool Assembler::IsConstantPoolAt(Instruction* instr) {
   // The constant pool marker is made of two instructions. These instructions

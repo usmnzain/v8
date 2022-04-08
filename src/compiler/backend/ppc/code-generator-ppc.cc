@@ -1112,6 +1112,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register scratch1 = i.TempRegister(1);
       OutOfLineRecordWrite* ool;
 
+      if (FLAG_debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ CmpS64(value, Operand(kClearedWeakHeapObjectLower32), kScratchReg);
+        __ Check(ne, AbortReason::kOperandIsCleared);
+      }
+
       AddressingMode addressing_mode =
           AddressingModeField::decode(instr->opcode());
       if (addressing_mode == kMode_MRI) {
@@ -3983,22 +3990,21 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
 
 void CodeGenerator::FinishFrame(Frame* frame) {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
-  const RegList double_saves = call_descriptor->CalleeSavedFPRegisters();
+  const DoubleRegList double_saves = call_descriptor->CalleeSavedFPRegisters();
 
   // Save callee-saved Double registers.
-  if (double_saves != 0) {
+  if (!double_saves.is_empty()) {
     frame->AlignSavedCalleeRegisterSlots();
-    DCHECK_EQ(kNumCalleeSavedDoubles,
-              base::bits::CountPopulation(double_saves));
+    DCHECK_EQ(kNumCalleeSavedDoubles, double_saves.Count());
     frame->AllocateSavedCalleeRegisterSlots(kNumCalleeSavedDoubles *
                                             (kDoubleSize / kSystemPointerSize));
   }
   // Save callee-saved registers.
-  const RegList saves = FLAG_enable_embedded_constant_pool
-                            ? call_descriptor->CalleeSavedRegisters() &
-                                  ~kConstantPoolRegister.bit()
-                            : call_descriptor->CalleeSavedRegisters();
-  if (saves != 0) {
+  const RegList saves =
+      FLAG_enable_embedded_constant_pool
+          ? call_descriptor->CalleeSavedRegisters() - kConstantPoolRegister
+          : call_descriptor->CalleeSavedRegisters();
+  if (!saves.is_empty()) {
     // register save area does not include the fp or constant pool pointer.
     const int num_saves =
         kNumCalleeSaved - 1 - (FLAG_enable_embedded_constant_pool ? 1 : 0);
@@ -4036,7 +4042,7 @@ void CodeGenerator::AssembleConstructFrame() {
     } else {
       StackFrame::Type type = info()->GetOutputStackFrameType();
       // TODO(mbrandy): Detect cases where ip is the entrypoint (for
-      // efficient intialization of the constant pool pointer register).
+      // efficient initialization of the constant pool pointer register).
       __ StubPrologue(type);
 #if V8_ENABLE_WEBASSEMBLY
       if (call_descriptor->IsWasmFunctionCall() ||
@@ -4068,11 +4074,11 @@ void CodeGenerator::AssembleConstructFrame() {
     required_slots -= osr_helper()->UnoptimizedFrameSlots();
   }
 
-  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
-  const RegList saves = FLAG_enable_embedded_constant_pool
-                            ? call_descriptor->CalleeSavedRegisters() &
-                                  ~kConstantPoolRegister.bit()
-                            : call_descriptor->CalleeSavedRegisters();
+  const DoubleRegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
+  const RegList saves =
+      FLAG_enable_embedded_constant_pool
+          ? call_descriptor->CalleeSavedRegisters() - kConstantPoolRegister
+          : call_descriptor->CalleeSavedRegisters();
 
   if (required_slots > 0) {
 #if V8_ENABLE_WEBASSEMBLY
@@ -4112,21 +4118,20 @@ void CodeGenerator::AssembleConstructFrame() {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Skip callee-saved and return slots, which are pushed below.
-    required_slots -= base::bits::CountPopulation(saves);
+    required_slots -= saves.Count();
     required_slots -= frame()->GetReturnSlotCount();
-    required_slots -= (kDoubleSize / kSystemPointerSize) *
-                      base::bits::CountPopulation(saves_fp);
+    required_slots -= (kDoubleSize / kSystemPointerSize) * saves_fp.Count();
     __ AddS64(sp, sp, Operand(-required_slots * kSystemPointerSize), r0);
   }
 
   // Save callee-saved Double registers.
-  if (saves_fp != 0) {
+  if (!saves_fp.is_empty()) {
     __ MultiPushDoubles(saves_fp);
-    DCHECK_EQ(kNumCalleeSavedDoubles, base::bits::CountPopulation(saves_fp));
+    DCHECK_EQ(kNumCalleeSavedDoubles, saves_fp.Count());
   }
 
   // Save callee-saved registers.
-  if (saves != 0) {
+  if (!saves.is_empty()) {
     __ MultiPush(saves);
     // register save area does not include the fp or constant pool pointer.
   }
@@ -4146,24 +4151,22 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
   }
 
   // Restore registers.
-  const RegList saves = FLAG_enable_embedded_constant_pool
-                            ? call_descriptor->CalleeSavedRegisters() &
-                                  ~kConstantPoolRegister.bit()
-                            : call_descriptor->CalleeSavedRegisters();
-  if (saves != 0) {
+  const RegList saves =
+      FLAG_enable_embedded_constant_pool
+          ? call_descriptor->CalleeSavedRegisters() - kConstantPoolRegister
+          : call_descriptor->CalleeSavedRegisters();
+  if (!saves.is_empty()) {
     __ MultiPop(saves);
   }
 
   // Restore double registers.
-  const RegList double_saves = call_descriptor->CalleeSavedFPRegisters();
-  if (double_saves != 0) {
+  const DoubleRegList double_saves = call_descriptor->CalleeSavedFPRegisters();
+  if (!double_saves.is_empty()) {
     __ MultiPopDoubles(double_saves);
   }
 
   unwinding_info_writer_.MarkBlockWillExit();
 
-  // We might need r6 for scratch.
-  DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & r6.bit());
   PPCOperandConverter g(this, nullptr);
   const int parameter_slots =
       static_cast<int>(call_descriptor->ParameterSlotCount());
@@ -4204,7 +4207,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
     if (drop_jsargs) {
       // Get the actual argument count.
-      DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & argc_reg.bit());
+      DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
       __ LoadU64(argc_reg, MemOperand(fp, StandardFrameConstants::kArgCOffset));
     }
     AssembleDeconstructFrame();
@@ -4216,6 +4219,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     // The number of arguments without the receiver is
     // max(argc_reg, parameter_slots-1), and the receiver is added in
     // DropArguments().
+    DCHECK(!call_descriptor->CalleeSavedRegisters().has(argc_reg));
     if (parameter_slots > 1) {
       Label skip;
       __ CmpS64(argc_reg, Operand(parameter_slots), r0);
@@ -4246,11 +4250,10 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   for (DeoptimizationExit* exit : deoptimization_exits_) {
     total_size += (exit->kind() == DeoptimizeKind::kLazy)
                       ? Deoptimizer::kLazyDeoptExitSize
-                      : Deoptimizer::kNonLazyDeoptExitSize;
+                      : Deoptimizer::kEagerDeoptExitSize;
   }
 
   __ CheckTrampolinePoolQuick(total_size);
-  DCHECK(Deoptimizer::kSupportsFixedDeoptExitSizes);
 }
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,

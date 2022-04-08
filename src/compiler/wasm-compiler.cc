@@ -7070,13 +7070,16 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* suspender = gasm_->Load(
         MachineType::TaggedPointer(), api_function_ref,
         wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kSuspenderOffset));
+    Node* native_context = gasm_->Load(
+        MachineType::TaggedPointer(), api_function_ref,
+        wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kNativeContextOffset));
     auto* call_descriptor = GetBuiltinCallDescriptor(
         Builtin::kWasmSuspend, zone_, StubCallMode::kCallWasmRuntimeStub);
     Node* call_target = mcgraph()->RelocatableIntPtrConstant(
         wasm::WasmCode::kWasmSuspend, RelocInfo::WASM_STUB_CALL);
     Node* args[] = {value, suspender};
-    Node* chained_promise =
-        BuildCallToRuntime(Runtime::kWasmCreateResumePromise, args, 2);
+    Node* chained_promise = BuildCallToRuntimeWithContext(
+        Runtime::kWasmCreateResumePromise, native_context, args, 2);
     Node* resolved =
         gasm_->Call(call_descriptor, call_target, chained_promise, suspender);
     gasm_->Goto(&resume, resolved);
@@ -7661,7 +7664,7 @@ void BuildInlinedJSToWasmWrapper(
   builder.BuildJSToWasmWrapper(false, js_wasm_call_data, frame_state);
 }
 
-std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
+std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::FunctionSig* sig,
     const wasm::WasmModule* module, bool is_import,
     const wasm::WasmFeatures& enabled_features) {
@@ -8064,6 +8067,11 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileWasmImportCallWrapper");
+  base::TimeTicks start_time;
+  if (V8_UNLIKELY(FLAG_trace_wasm_compilation_times)) {
+    start_time = base::TimeTicks::Now();
+  }
+
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
@@ -8099,9 +8107,19 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   if (machine->Is32()) {
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
-  return Pipeline::GenerateCodeForWasmNativeStub(
+  wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
       incoming, mcgraph, CodeKind::WASM_TO_JS_FUNCTION, func_name,
       WasmStubAssemblerOptions(), source_position_table);
+
+  if (V8_UNLIKELY(FLAG_trace_wasm_compilation_times)) {
+    base::TimeDelta time = base::TimeTicks::Now() - start_time;
+    int codesize = result.code_desc.body_size();
+    StdoutStream{} << "Compiled WasmToJS wrapper " << func_name << ", took "
+                   << time.InMilliseconds() << " ms; codesize " << codesize
+                   << std::endl;
+  }
+
+  return result;
 }
 
 wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule* native_module,
@@ -8241,7 +8259,7 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
       GetWasmCallDescriptor(zone.get(), sig, WasmCallKind::kWasmImportWrapper);
 
   // Run the compilation job synchronously.
-  std::unique_ptr<OptimizedCompilationJob> job(
+  std::unique_ptr<TurbofanCompilationJob> job(
       Pipeline::NewWasmHeapStubCompilationJob(
           isolate, incoming, std::move(zone), graph,
           CodeKind::WASM_TO_JS_FUNCTION, std::move(name_buffer),
@@ -8290,7 +8308,7 @@ MaybeHandle<Code> CompileJSToJSWrapper(Isolate* isolate,
       base::VectorOf(name_buffer.get(), kMaxNameLen) + kNamePrefixLen, sig);
 
   // Run the compilation job synchronously.
-  std::unique_ptr<OptimizedCompilationJob> job(
+  std::unique_ptr<TurbofanCompilationJob> job(
       Pipeline::NewWasmHeapStubCompilationJob(
           isolate, incoming, std::move(zone), graph,
           CodeKind::JS_TO_JS_FUNCTION, std::move(name_buffer),
@@ -8347,7 +8365,7 @@ Handle<CodeT> CompileCWasmEntry(Isolate* isolate, const wasm::FunctionSig* sig,
       base::VectorOf(name_buffer.get(), kMaxNameLen) + kNamePrefixLen, sig);
 
   // Run the compilation job synchronously.
-  std::unique_ptr<OptimizedCompilationJob> job(
+  std::unique_ptr<TurbofanCompilationJob> job(
       Pipeline::NewWasmHeapStubCompilationJob(
           isolate, incoming, std::move(zone), graph, CodeKind::C_WASM_ENTRY,
           std::move(name_buffer), AssemblerOptions::Default(isolate)));
@@ -8402,10 +8420,12 @@ base::Vector<const char> GetDebugName(Zone* zone,
        FLAG_trace_turbo_graph || FLAG_print_wasm_code)) {
     wasm::WireBytesRef name = module->lazily_generated_names.LookupFunctionName(
         module_bytes.value(), index);
-    int name_len = name.length();
-    char* index_name = zone->NewArray<char>(name_len);
-    memcpy(index_name, module_bytes->start() + name.offset(), name.length());
-    return base::Vector<const char>(index_name, name_len);
+    if (!name.is_empty()) {
+      int name_len = name.length();
+      char* index_name = zone->NewArray<char>(name_len);
+      memcpy(index_name, module_bytes->start() + name.offset(), name_len);
+      return base::Vector<const char>(index_name, name_len);
+    }
   }
 
   constexpr int kBufferLength = 24;
@@ -8425,6 +8445,10 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     wasm::CompilationEnv* env, const wasm::WireBytesStorage* wire_byte_storage,
     const wasm::FunctionBody& func_body, int func_index, Counters* counters,
     wasm::WasmFeatures* detected) {
+  // Check that we do not accidentally compile a Wasm function to TurboFan if
+  // --liftoff-only is set.
+  DCHECK(!FLAG_liftoff_only);
+
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileTopTier", "func_index", func_index, "body_size",
                func_body.end - func_body.start);
@@ -8606,8 +8630,8 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
 
   int return_slots = rets.NumStackSlots();
 
-  const RegList kCalleeSaveRegisters = 0;
-  const RegList kCalleeSaveFPRegisters = 0;
+  const RegList kCalleeSaveRegisters;
+  const DoubleRegList kCalleeSaveFPRegisters;
 
   // The target for wasm calls is always a code object.
   MachineType target_type = MachineType::Pointer();
@@ -8639,7 +8663,7 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
       "wasm-call",                        // debug name
       StackArgumentOrder::kDefault,       // order of the arguments in the stack
       fsig,                               // signature
-      0,                                  // allocatable registers
+      RegList{},                          // allocatable registers
       return_slots);                      // return slot count
 }
 

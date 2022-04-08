@@ -509,7 +509,7 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   vector.set_length(length);
   vector.set_invocation_count(0);
   vector.set_profiler_ticks(0);
-  vector.InitializeOptimizationState();
+  vector.reset_flags();
   vector.set_closure_feedback_cell_array(*closure_feedback_cell_array);
 
   // TODO(leszeks): Initialize based on the feedback metadata.
@@ -1184,7 +1184,7 @@ Handle<NativeContext> Factory::NewNativeContext() {
   context.set_math_random_index(Smi::zero());
   context.set_serialized_objects(*empty_fixed_array());
   context.set_microtask_queue(isolate(), nullptr);
-  context.set_osr_code_cache(*empty_weak_fixed_array());
+  context.set_osr_code_cache(*OSROptimizedCodeCache::Empty(isolate()));
   context.set_retained_maps(*empty_weak_array_list());
   return handle(context, isolate());
 }
@@ -2240,8 +2240,7 @@ DEFINE_ERROR(WasmExceptionError, wasm_exception_error)
 Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   // Make sure to use globals from the function's context, since the function
   // can be from a different context.
-  Handle<NativeContext> native_context(function->context().native_context(),
-                                       isolate());
+  Handle<NativeContext> native_context(function->native_context(), isolate());
   Handle<Map> new_map;
   if (V8_UNLIKELY(IsAsyncGeneratorFunction(function->shared().kind()))) {
     new_map = handle(native_context->async_generator_object_prototype_map(),
@@ -2272,9 +2271,10 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 }
 
 Handle<JSObject> Factory::NewExternal(void* value) {
-  Handle<Foreign> foreign = NewForeign(reinterpret_cast<Address>(value));
-  Handle<JSObject> external = NewJSObjectFromMap(external_map());
-  external->SetEmbedderField(0, *foreign);
+  auto external =
+      Handle<JSExternalObject>::cast(NewJSObjectFromMap(external_map()));
+  external->AllocateExternalPointerEntries(isolate());
+  external->set_value(isolate(), value);
   return external;
 }
 
@@ -2415,7 +2415,7 @@ Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {
   copy.set_handler_table(raw_source.handler_table());
   copy.set_source_position_table(raw_source.source_position_table(kAcquireLoad),
                                  kReleaseStore);
-  copy.set_osr_loop_nesting_level(raw_source.osr_loop_nesting_level());
+  copy.set_osr_urgency(raw_source.osr_urgency());
   copy.set_bytecode_age(raw_source.bytecode_age());
   raw_source.CopyBytecodesTo(copy);
   return handle(copy, isolate());
@@ -2959,6 +2959,7 @@ Handle<JSArrayBufferView> Factory::NewJSArrayBufferView(
   raw.set_byte_offset(byte_offset);
   raw.set_byte_length(byte_length);
   raw.set_bit_field(0);
+  // TODO(v8) remove once embedder data slots are always zero-initialized.
   InitEmbedderFields(raw, Smi::zero());
   DCHECK_EQ(raw.GetEmbedderFieldCount(),
             v8::ArrayBufferView::kEmbedderFieldCount);
@@ -3263,6 +3264,7 @@ Handle<Object> Factory::NumberToStringCacheGet(Object number, int hash) {
 
 Handle<String> Factory::NumberToString(Handle<Object> number,
                                        NumberCacheMode mode) {
+  SLOW_DCHECK(number->IsNumber());
   if (number->IsSmi()) return SmiToString(Smi::cast(*number), mode);
 
   double double_value = Handle<HeapNumber>::cast(number)->value();
@@ -3455,6 +3457,16 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo(
   info.set_function_name(*function_name, SKIP_WRITE_BARRIER);
   info.set_is_constructor(is_constructor);
   return handle(info, isolate());
+}
+
+Handle<PromiseOnStack> Factory::NewPromiseOnStack(Handle<Object> prev,
+                                                  Handle<JSObject> promise) {
+  PromiseOnStack promise_on_stack = NewStructInternal<PromiseOnStack>(
+      PROMISE_ON_STACK_TYPE, AllocationType::kYoung);
+  DisallowGarbageCollection no_gc;
+  promise_on_stack.set_prev(*prev, SKIP_WRITE_BARRIER);
+  promise_on_stack.set_promise(*MaybeObjectHandle::Weak(promise));
+  return handle(promise_on_stack, isolate());
 }
 
 Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
@@ -3873,6 +3885,7 @@ Handle<JSPromise> Factory::NewJSPromiseWithoutHook() {
   JSPromise raw = *promise;
   raw.set_reactions_or_result(Smi::zero(), SKIP_WRITE_BARRIER);
   raw.set_flags(0);
+  // TODO(v8) remove once embedder data slots are always zero-initialized.
   InitEmbedderFields(*promise, Smi::zero());
   DCHECK_EQ(raw.GetEmbedderFieldCount(), v8::Promise::kEmbedderFieldCount);
   return promise;

@@ -65,7 +65,10 @@ namespace internal {
   F(AtomicsOr, 3, 1)                                   \
   F(AtomicsSub, 3, 1)                                  \
   F(AtomicsXor, 3, 1)                                  \
-  F(SetAllowAtomicsWait, 1, 1)
+  F(SetAllowAtomicsWait, 1, 1)                         \
+  F(AtomicsLoadSharedStructField, 2, 1)                \
+  F(AtomicsStoreSharedStructField, 3, 1)               \
+  F(AtomicsExchangeSharedStructField, 3, 1)
 
 #define FOR_EACH_INTRINSIC_BIGINT(F, I) \
   F(BigIntBinaryOp, 3, 1)               \
@@ -104,13 +107,13 @@ namespace internal {
   F(WeakCollectionSet, 4, 1)
 
 #define FOR_EACH_INTRINSIC_COMPILER(F, I) \
-  F(CompileForOnStackReplacement, 0, 1)   \
+  F(CompileOptimizedOSR, 0, 1)            \
   F(CompileLazy, 1, 1)                    \
   F(CompileBaseline, 1, 1)                \
   F(CompileMaglev_Concurrent, 1, 1)       \
-  F(CompileMaglev_NotConcurrent, 1, 1)    \
+  F(CompileMaglev_Synchronous, 1, 1)      \
   F(CompileTurbofan_Concurrent, 1, 1)     \
-  F(CompileTurbofan_NotConcurrent, 1, 1)  \
+  F(CompileTurbofan_Synchronous, 1, 1)    \
   F(InstallBaselineCode, 1, 1)            \
   F(HealOptimizedCodeSlot, 1, 1)          \
   F(InstantiateAsmJs, 4, 1)               \
@@ -249,6 +252,7 @@ namespace internal {
   F(ThrowIteratorError, 1, 1)                        \
   F(ThrowSpreadArgError, 2, 1)                       \
   F(ThrowIteratorResultNotAnObject, 1, 1)            \
+  F(ThrowNoAccess, 0, 1)                             \
   F(ThrowNotConstructor, 1, 1)                       \
   F(ThrowPatternAssignmentNonCoercible, 1, 1)        \
   F(ThrowRangeError, -1 /* >= 1 */, 1)               \
@@ -299,7 +303,7 @@ namespace internal {
   I(CreateIterResultObject, 2, 1)                                      \
   F(CreatePrivateAccessors, 2, 1)                                      \
   F(DefineAccessorPropertyUnchecked, 5, 1)                             \
-  F(DefineDataPropertyInLiteral, 6, 1)                                 \
+  F(DefineKeyedOwnPropertyInLiteral, 6, 1)                             \
   F(DefineGetterPropertyUnchecked, 4, 1)                               \
   F(DefineSetterPropertyUnchecked, 4, 1)                               \
   F(DeleteProperty, 3, 1)                                              \
@@ -337,7 +341,7 @@ namespace internal {
   F(DefineObjectOwnProperty, 3, 1)                                     \
   F(SetNamedProperty, 3, 1)                                            \
   F(SetOwnPropertyIgnoreAttributes, 4, 1)                              \
-  F(StoreDataPropertyInLiteral, 3, 1)                                  \
+  F(DefineKeyedOwnPropertyInLiteral_Simple, 3, 1)                      \
   F(ShrinkNameDictionary, 1, 1)                                        \
   F(ShrinkSwissNameDictionary, 1, 1)                                   \
   F(ToFastProperties, 1, 1)                                            \
@@ -434,6 +438,9 @@ namespace internal {
   F(StoreLookupSlot_SloppyHoisting, 2, 1)          \
   F(StoreLookupSlot_Strict, 2, 1)                  \
   F(ThrowConstAssignError, 0, 1)
+
+#define FOR_EACH_INTRINSIC_SHADOW_REALM(F, I) \
+  F(ShadowRealmWrappedFunctionCreate, 2, 1)
 
 #define FOR_EACH_INTRINSIC_STRINGS(F, I)  \
   F(FlattenString, 1, 1)                  \
@@ -642,11 +649,11 @@ namespace internal {
   F(ElementsTransitionAndStoreIC_Miss, 6, 1) \
   F(KeyedLoadIC_Miss, 4, 1)                  \
   F(KeyedStoreIC_Miss, 5, 1)                 \
-  F(KeyedDefineOwnIC_Miss, 5, 1)             \
+  F(DefineKeyedOwnIC_Miss, 5, 1)             \
   F(StoreInArrayLiteralIC_Miss, 5, 1)        \
-  F(StoreOwnIC_Slow, 3, 1)                   \
+  F(DefineNamedOwnIC_Slow, 3, 1)             \
   F(KeyedStoreIC_Slow, 3, 1)                 \
-  F(KeyedDefineOwnIC_Slow, 3, 1)             \
+  F(DefineKeyedOwnIC_Slow, 3, 1)             \
   F(LoadElementWithInterceptor, 2, 1)        \
   F(LoadGlobalIC_Miss, 4, 1)                 \
   F(LoadGlobalIC_Slow, 3, 1)                 \
@@ -660,7 +667,7 @@ namespace internal {
   F(StoreGlobalICNoFeedback_Miss, 2, 1)      \
   F(StoreGlobalIC_Slow, 5, 1)                \
   F(StoreIC_Miss, 5, 1)                      \
-  F(StoreOwnIC_Miss, 5, 1)                   \
+  F(DefineNamedOwnIC_Miss, 5, 1)             \
   F(StoreInArrayLiteralIC_Slow, 5, 1)        \
   F(StorePropertyWithInterceptor, 5, 1)      \
   F(CloneObjectIC_Miss, 4, 1)                \
@@ -692,6 +699,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_PROXY(F, I)                    \
   FOR_EACH_INTRINSIC_REGEXP(F, I)                   \
   FOR_EACH_INTRINSIC_SCOPES(F, I)                   \
+  FOR_EACH_INTRINSIC_SHADOW_REALM(F, I)             \
   FOR_EACH_INTRINSIC_STRINGS(F, I)                  \
   FOR_EACH_INTRINSIC_SYMBOL(F, I)                   \
   FOR_EACH_INTRINSIC_TEST(F, I)                     \
@@ -887,18 +895,19 @@ enum class OptimizationStatus {
   kAlwaysOptimize = 1 << 2,
   kMaybeDeopted = 1 << 3,
   kOptimized = 1 << 4,
-  kTurboFanned = 1 << 5,
-  kInterpreted = 1 << 6,
-  kMarkedForOptimization = 1 << 7,
-  kMarkedForConcurrentOptimization = 1 << 8,
-  kOptimizingConcurrently = 1 << 9,
-  kIsExecuting = 1 << 10,
-  kTopmostFrameIsTurboFanned = 1 << 11,
-  kLiteMode = 1 << 12,
-  kMarkedForDeoptimization = 1 << 13,
-  kBaseline = 1 << 14,
-  kTopmostFrameIsInterpreted = 1 << 15,
-  kTopmostFrameIsBaseline = 1 << 16,
+  kMaglevved = 1 << 5,
+  kTurboFanned = 1 << 6,
+  kInterpreted = 1 << 7,
+  kMarkedForOptimization = 1 << 8,
+  kMarkedForConcurrentOptimization = 1 << 9,
+  kOptimizingConcurrently = 1 << 10,
+  kIsExecuting = 1 << 11,
+  kTopmostFrameIsTurboFanned = 1 << 12,
+  kLiteMode = 1 << 13,
+  kMarkedForDeoptimization = 1 << 14,
+  kBaseline = 1 << 15,
+  kTopmostFrameIsInterpreted = 1 << 16,
+  kTopmostFrameIsBaseline = 1 << 17,
 };
 
 }  // namespace internal

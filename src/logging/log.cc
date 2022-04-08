@@ -1394,7 +1394,7 @@ void Logger::FeedbackVectorEvent(FeedbackVector vector, AbstractCode code) {
   msg << kNext << reinterpret_cast<void*>(vector.address()) << kNext
       << vector.length();
   msg << kNext << reinterpret_cast<void*>(code.InstructionStart());
-  msg << kNext << vector.optimization_marker();
+  msg << kNext << vector.tiering_state();
   msg << kNext << vector.maybe_has_optimized_code();
   msg << kNext << vector.invocation_count();
   msg << kNext << vector.profiler_ticks() << kNext;
@@ -1610,15 +1610,6 @@ void Logger::MoveEventInternal(LogEventsAndTags event, Address from,
   MSG_BUILDER();
   msg << kLogEventsNames[event] << kNext << reinterpret_cast<void*>(from)
       << kNext << reinterpret_cast<void*>(to);
-  msg.WriteToLogFile();
-}
-
-void Logger::SuspectReadEvent(Name name, Object obj) {
-  if (!FLAG_log_suspect) return;
-  MSG_BUILDER();
-  String class_name = obj.IsJSObject() ? JSObject::cast(obj).class_name()
-                                       : ReadOnlyRoots(isolate_).empty_string();
-  msg << "suspect-read" << kNext << class_name << kNext << name;
   msg.WriteToLogFile();
 }
 

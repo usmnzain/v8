@@ -2387,8 +2387,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate_, promise_fun, "all", Builtin::kPromiseAll, 1, true);
     native_context()->set_promise_all(*promise_all);
 
-    InstallFunctionWithBuiltinId(isolate_, promise_fun, "allSettled",
-                                 Builtin::kPromiseAllSettled, 1, true);
+    Handle<JSFunction> promise_all_settled =
+        InstallFunctionWithBuiltinId(isolate_, promise_fun, "allSettled",
+                                     Builtin::kPromiseAllSettled, 1, true);
+    native_context()->set_promise_all_settled(*promise_all_settled);
 
     Handle<JSFunction> promise_any = InstallFunctionWithBuiltinId(
         isolate_, promise_fun, "any", Builtin::kPromiseAny, 1, true);
@@ -4058,6 +4060,8 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
   Handle<Map> rab_gsab_initial_map = factory()->NewMap(
       JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithEmbedderFields,
       GetCorrespondingRabGsabElementsKind(elements_kind), 0);
+  rab_gsab_initial_map->SetConstructor(*result);
+
   native_context()->set(rab_gsab_initial_map_index, *rab_gsab_initial_map,
                         UPDATE_WRITE_BARRIER, kReleaseStore);
   Map::SetPrototype(isolate(), rab_gsab_initial_map, prototype);
@@ -4453,13 +4457,14 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
 
 void Genesis::InitializeGlobal_harmony_shadow_realm() {
   if (!FLAG_harmony_shadow_realm) return;
+  Factory* factory = isolate()->factory();
   // -- S h a d o w R e a l m
   // #sec-shadowrealm-objects
   Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
-  Handle<JSFunction> shadow_realm_fun = InstallFunction(
-      isolate_, global, "ShadowRealm", JS_SHADOW_REALM_TYPE,
-      JSShadowRealm::kHeaderSize, 0, factory()->the_hole_value(),
-      Builtin::kShadowRealmConstructor);
+  Handle<JSFunction> shadow_realm_fun =
+      InstallFunction(isolate_, global, "ShadowRealm", JS_SHADOW_REALM_TYPE,
+                      JSShadowRealm::kHeaderSize, 0, factory->the_hole_value(),
+                      Builtin::kShadowRealmConstructor);
   shadow_realm_fun->shared().set_length(0);
   shadow_realm_fun->shared().DontAdaptArguments();
 
@@ -4467,7 +4472,7 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
   Handle<JSObject> prototype(
       JSObject::cast(shadow_realm_fun->instance_prototype()), isolate());
 
-  InstallToStringTag(isolate_, prototype, factory()->ShadowRealm_string());
+  InstallToStringTag(isolate_, prototype, factory->ShadowRealm_string());
 
   SimpleInstallFunction(isolate_, prototype, "evaluate",
                         Builtin::kShadowRealmPrototypeEvaluate, 1, true);
@@ -4475,14 +4480,37 @@ void Genesis::InitializeGlobal_harmony_shadow_realm() {
                         Builtin::kShadowRealmPrototypeImportValue, 2, true);
 
   {  // --- W r a p p e d F u n c t i o n
-    Handle<Map> map = factory()->NewMap(JS_WRAPPED_FUNCTION_TYPE,
-                                        JSWrappedFunction::kHeaderSize,
-                                        TERMINAL_FAST_ELEMENTS_KIND, 0);
+    Handle<Map> map = factory->NewMap(JS_WRAPPED_FUNCTION_TYPE,
+                                      JSWrappedFunction::kHeaderSize,
+                                      TERMINAL_FAST_ELEMENTS_KIND, 0);
     map->SetConstructor(native_context()->object_function());
     map->set_is_callable(true);
     Handle<JSObject> empty_function(native_context()->function_prototype(),
                                     isolate());
     Map::SetPrototype(isolate(), map, empty_function);
+
+    PropertyAttributes roc_attribs =
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+    Map::EnsureDescriptorSlack(isolate_, map, 2);
+    {  // length
+      STATIC_ASSERT(
+          JSFunctionOrBoundFunctionOrWrappedFunction::kLengthDescriptorIndex ==
+          0);
+      Descriptor d = Descriptor::AccessorConstant(
+          factory->length_string(), factory->wrapped_function_length_accessor(),
+          roc_attribs);
+      map->AppendDescriptor(isolate(), &d);
+    }
+
+    {  // name
+      STATIC_ASSERT(
+          JSFunctionOrBoundFunctionOrWrappedFunction::kNameDescriptorIndex ==
+          1);
+      Descriptor d = Descriptor::AccessorConstant(
+          factory->name_string(), factory->wrapped_function_name_accessor(),
+          roc_attribs);
+      map->AppendDescriptor(isolate(), &d);
+    }
 
     native_context()->set_wrapped_function_map(*map);
   }
@@ -5351,20 +5379,35 @@ void Genesis::InitializeGlobal_harmony_intl_number_format_v3() {
           factory()->InternalizeUtf8String("Intl"))
           .ToHandleChecked());
 
-  Handle<JSFunction> number_format_constructor = Handle<JSFunction>::cast(
-      JSReceiver::GetProperty(
-          isolate(), Handle<JSReceiver>(JSReceiver::cast(*intl), isolate()),
-          factory()->InternalizeUtf8String("NumberFormat"))
-          .ToHandleChecked());
+  {
+    Handle<JSFunction> number_format_constructor = Handle<JSFunction>::cast(
+        JSReceiver::GetProperty(
+            isolate(), Handle<JSReceiver>(JSReceiver::cast(*intl), isolate()),
+            factory()->InternalizeUtf8String("NumberFormat"))
+            .ToHandleChecked());
 
-  Handle<JSObject> prototype(
-      JSObject::cast(number_format_constructor->prototype()), isolate());
+    Handle<JSObject> prototype(
+        JSObject::cast(number_format_constructor->prototype()), isolate());
 
-  SimpleInstallFunction(isolate(), prototype, "formatRange",
-                        Builtin::kNumberFormatPrototypeFormatRange, 2, false);
-  SimpleInstallFunction(isolate(), prototype, "formatRangeToParts",
-                        Builtin::kNumberFormatPrototypeFormatRangeToParts, 2,
-                        false);
+    SimpleInstallFunction(isolate(), prototype, "formatRange",
+                          Builtin::kNumberFormatPrototypeFormatRange, 2, false);
+    SimpleInstallFunction(isolate(), prototype, "formatRangeToParts",
+                          Builtin::kNumberFormatPrototypeFormatRangeToParts, 2,
+                          false);
+  }
+  {
+    Handle<JSFunction> plural_rules_constructor = Handle<JSFunction>::cast(
+        JSReceiver::GetProperty(
+            isolate(), Handle<JSReceiver>(JSReceiver::cast(*intl), isolate()),
+            factory()->InternalizeUtf8String("PluralRules"))
+            .ToHandleChecked());
+
+    Handle<JSObject> prototype(
+        JSObject::cast(plural_rules_constructor->prototype()), isolate());
+
+    SimpleInstallFunction(isolate(), prototype, "selectRange",
+                          Builtin::kPluralRulesPrototypeSelectRange, 2, false);
+  }
 }
 
 #endif  // V8_INTL_SUPPORT
@@ -5866,7 +5909,7 @@ bool Genesis::InstallExtensions(Isolate* isolate,
           InstallExtension(isolate, "v8/gc", &extension_states)) &&
          (!FLAG_expose_externalize_string ||
           InstallExtension(isolate, "v8/externalize", &extension_states)) &&
-         (!TracingFlags::is_gc_stats_enabled() ||
+         (!(FLAG_expose_statistics || TracingFlags::is_gc_stats_enabled()) ||
           InstallExtension(isolate, "v8/statistics", &extension_states)) &&
          (!FLAG_expose_trigger_failure ||
           InstallExtension(isolate, "v8/trigger-failure", &extension_states)) &&
@@ -5939,24 +5982,29 @@ bool Genesis::InstallExtension(Isolate* isolate,
       return false;
     }
   }
-  bool result = CompileExtension(isolate, extension);
-  if (!result) {
+  if (!CompileExtension(isolate, extension)) {
     // If this failed, it either threw an exception, or the isolate is
     // terminating.
     DCHECK(isolate->has_pending_exception() ||
            (isolate->has_scheduled_exception() &&
             isolate->scheduled_exception() ==
                 ReadOnlyRoots(isolate).termination_exception()));
-    // We print out the name of the extension that fail to install.
-    // When an error is thrown during bootstrapping we automatically print
-    // the line number at which this happened to the console in the isolate
-    // error throwing functionality.
-    base::OS::PrintError("Error installing extension '%s'.\n",
-                         current->extension()->name());
-    isolate->clear_pending_exception();
+    if (isolate->has_pending_exception()) {
+      // We print out the name of the extension that fail to install.
+      // When an error is thrown during bootstrapping we automatically print
+      // the line number at which this happened to the console in the isolate
+      // error throwing functionality.
+      base::OS::PrintError("Error installing extension '%s'.\n",
+                           current->extension()->name());
+      isolate->clear_pending_exception();
+    }
+    return false;
   }
+
+  DCHECK(!isolate->has_pending_exception() &&
+         !isolate->has_scheduled_exception());
   extension_states->set_state(current, INSTALLED);
-  return result;
+  return true;
 }
 
 bool Genesis::ConfigureGlobalObject(

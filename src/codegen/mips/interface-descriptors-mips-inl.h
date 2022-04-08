@@ -24,29 +24,17 @@ template <typename DerivedDescriptor>
 void StaticCallInterfaceDescriptor<DerivedDescriptor>::
     VerifyArgumentRegisterCount(CallInterfaceDescriptorData* data, int argc) {
   RegList allocatable_regs = data->allocatable_registers();
-  if (argc >= 1) DCHECK(allocatable_regs | a0.bit());
-  if (argc >= 2) DCHECK(allocatable_regs | a1.bit());
-  if (argc >= 3) DCHECK(allocatable_regs | a2.bit());
-  if (argc >= 4) DCHECK(allocatable_regs | a3.bit());
+  if (argc >= 1) DCHECK(allocatable_regs.has(a0));
+  if (argc >= 2) DCHECK(allocatable_regs.has(a1));
+  if (argc >= 3) DCHECK(allocatable_regs.has(a2));
+  if (argc >= 4) DCHECK(allocatable_regs.has(a3));
   // Additional arguments are passed on the stack.
 }
 #endif  // DEBUG
 
 // static
 constexpr auto WriteBarrierDescriptor::registers() {
-  return RegisterArray(a1, t1, t0, a0, a2, v0, a3);
-}
-
-// static
-constexpr auto DynamicCheckMapsDescriptor::registers() {
-  STATIC_ASSERT(kReturnRegister0 == v0);
-  return RegisterArray(kReturnRegister0, a0, a1, a2, cp);
-}
-
-// static
-constexpr auto DynamicCheckMapsWithFeedbackVectorDescriptor::registers() {
-  STATIC_ASSERT(kReturnRegister0 == v0);
-  return RegisterArray(kReturnRegister0, a0, a1, a2, cp);
+  return RegisterArray(a1, t1, t0, a0, a2, v0, a3, kContextRegister);
 }
 
 // static

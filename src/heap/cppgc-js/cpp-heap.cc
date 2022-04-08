@@ -64,10 +64,6 @@ class V8ToCppGCReferencesVisitor final
         isolate_(isolate),
         wrapper_descriptor_(wrapper_descriptor) {}
 
-  void VisitTracedGlobalHandle(const v8::TracedGlobal<v8::Value>&) final {
-    UNREACHABLE();
-  }
-
   void VisitTracedReference(const v8::TracedReference<v8::Value>& value) final {
     VisitHandle(value, value.WrapperClassId());
   }
@@ -79,7 +75,9 @@ class V8ToCppGCReferencesVisitor final
 
     const internal::JSObject js_object =
         *reinterpret_cast<const internal::JSObject* const&>(value);
-    if (!js_object.ptr() || !js_object.IsApiWrapper()) return;
+    if (!js_object.ptr() || js_object.IsSmi() ||
+        !js_object.MayHaveEmbedderFields())
+      return;
 
     internal::LocalEmbedderHeapTracer::WrapperInfo info;
     if (!internal::LocalEmbedderHeapTracer::ExtractWrappableInfo(
@@ -298,9 +296,18 @@ void UnifiedHeapMarker::AddObject(void* object) {
 }
 
 void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
-    const FullCycle& cppgc_event) {
-  DCHECK(!last_full_gc_event_.has_value());
-  last_full_gc_event_ = cppgc_event;
+    const GCCycle& cppgc_event) {
+  if (cppgc_event.type == MetricRecorder::GCCycle::Type::kMinor) {
+    DCHECK(!last_young_gc_event_);
+    last_young_gc_event_ = cppgc_event;
+  } else {
+    DCHECK(!last_full_gc_event_);
+    last_full_gc_event_ = cppgc_event;
+  }
+  GetIsolate()->heap()->tracer()->NotifyCppGCCompleted(
+      cppgc_event.type == MetricRecorder::GCCycle::Type::kMinor
+          ? GCTracer::CppType::kMinor
+          : GCTracer::CppType::kMajor);
 }
 
 void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
@@ -320,7 +327,6 @@ void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
   incremental_mark_batched_events_.events.emplace_back();
   incremental_mark_batched_events_.events.back().cpp_wall_clock_duration_in_us =
       cppgc_event.duration_us;
-  // TODO(chromium:1154636): Populate event.wall_clock_duration_in_us.
   if (incremental_mark_batched_events_.events.size() == kMaxBatchedEvents) {
     recorder->AddMainThreadEvent(std::move(incremental_mark_batched_events_),
                                  GetContextId());
@@ -339,7 +345,6 @@ void CppHeap::MetricRecorderAdapter::AddMainThreadEvent(
   incremental_sweep_batched_events_.events.emplace_back();
   incremental_sweep_batched_events_.events.back()
       .cpp_wall_clock_duration_in_us = cppgc_event.duration_us;
-  // TODO(chromium:1154636): Populate event.wall_clock_duration_in_us.
   if (incremental_sweep_batched_events_.events.size() == kMaxBatchedEvents) {
     recorder->AddMainThreadEvent(std::move(incremental_sweep_batched_events_),
                                  GetContextId());
@@ -363,14 +368,25 @@ void CppHeap::MetricRecorderAdapter::FlushBatchedIncrementalEvents() {
   }
 }
 
-bool CppHeap::MetricRecorderAdapter::MetricsReportPending() const {
+bool CppHeap::MetricRecorderAdapter::FullGCMetricsReportPending() const {
   return last_full_gc_event_.has_value();
 }
 
-const base::Optional<cppgc::internal::MetricRecorder::FullCycle>
+bool CppHeap::MetricRecorderAdapter::YoungGCMetricsReportPending() const {
+  return last_young_gc_event_.has_value();
+}
+
+const base::Optional<cppgc::internal::MetricRecorder::GCCycle>
 CppHeap::MetricRecorderAdapter::ExtractLastFullGcEvent() {
   auto res = std::move(last_full_gc_event_);
   last_full_gc_event_.reset();
+  return res;
+}
+
+const base::Optional<cppgc::internal::MetricRecorder::GCCycle>
+CppHeap::MetricRecorderAdapter::ExtractLastYoungGcEvent() {
+  auto res = std::move(last_young_gc_event_);
+  last_young_gc_event_.reset();
   return res;
 }
 
@@ -386,6 +402,7 @@ void CppHeap::MetricRecorderAdapter::ClearCachedEvents() {
   incremental_sweep_batched_events_.events.clear();
   last_incremental_mark_event_.reset();
   last_full_gc_event_.reset();
+  last_young_gc_event_.reset();
 }
 
 Isolate* CppHeap::MetricRecorderAdapter::GetIsolate() const {
@@ -513,9 +530,15 @@ void CppHeap::InitializeTracing(
     GarbageCollectionFlags gc_flags) {
   CHECK(!sweeper_.IsSweepingInProgress());
 
-  // Check that previous cycle metrics have been reported.
-  DCHECK_IMPLIES(GetMetricRecorder(),
-                 !GetMetricRecorder()->MetricsReportPending());
+  // Check that previous cycle metrics for the same collection type have been
+  // reported.
+  if (GetMetricRecorder()) {
+    if (collection_type ==
+        cppgc::internal::GarbageCollector::Config::CollectionType::kMajor)
+      DCHECK(!GetMetricRecorder()->FullGCMetricsReportPending());
+    else
+      DCHECK(!GetMetricRecorder()->YoungGCMetricsReportPending());
+  }
 
   DCHECK(!collection_type_);
   collection_type_ = collection_type;
@@ -578,9 +601,6 @@ bool CppHeap::IsTracingDone() { return marking_done_; }
 void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
   CHECK(!in_disallow_gc_scope());
   in_atomic_pause_ = true;
-  if (override_stack_state_) {
-    stack_state = *override_stack_state_;
-  }
   marker_->EnterAtomicPause(stack_state);
   if (isolate_ &&
       *collection_type_ ==
@@ -615,9 +635,9 @@ void CppHeap::TraceEpilogue() {
   const size_t bytes_allocated_in_prefinalizers = ExecutePreFinalizers();
 #if CPPGC_VERIFY_HEAP
   UnifiedHeapMarkingVerifier verifier(*this, *collection_type_);
-  verifier.Run(
-      stack_state_of_prev_gc(), stack_end_of_current_gc(),
-      stats_collector()->marked_bytes() + bytes_allocated_in_prefinalizers);
+  verifier.Run(stack_state_of_prev_gc(), stack_end_of_current_gc(),
+               stats_collector()->marked_bytes_on_current_cycle() +
+                   bytes_allocated_in_prefinalizers);
 #endif  // CPPGC_VERIFY_HEAP
   USE(bytes_allocated_in_prefinalizers);
 
@@ -643,6 +663,28 @@ void CppHeap::TraceEpilogue() {
   in_atomic_pause_ = false;
   collection_type_.reset();
   sweeper().NotifyDoneIfNeeded();
+}
+
+void CppHeap::RunMinorGC() {
+#if defined(CPPGC_YOUNG_GENERATION)
+  if (in_no_gc_scope()) return;
+  // Minor GC does not support nesting in full GCs.
+  if (IsMarking()) return;
+  // Finish sweeping in case it is still running.
+  sweeper().FinishIfRunning();
+
+  SetStackEndOfCurrentGC(v8::base::Stack::GetCurrentStackPosition());
+
+  // Perform an atomic GC, with starting incremental/concurrent marking and
+  // immediately finalizing the garbage collection.
+  InitializeTracing(
+      cppgc::internal::GarbageCollector::Config::CollectionType::kMinor,
+      GarbageCollectionFlagValues::kForced);
+  StartTracing();
+  EnterFinalPause(cppgc::EmbedderStackState::kMayContainHeapPointers);
+  AdvanceTracing(std::numeric_limits<double>::infinity());
+  TraceEpilogue();
+#endif  // defined(CPPGC_YOUNG_GENERATION)
 }
 
 void CppHeap::AllocatedObjectSizeIncreased(size_t bytes) {
@@ -823,6 +865,8 @@ CppHeap::MetricRecorderAdapter* CppHeap::GetMetricRecorder() const {
 }
 
 void CppHeap::FinishSweepingIfRunning() { sweeper_.FinishIfRunning(); }
+
+void CppHeap::FinishSweepingIfOutOfWork() { sweeper_.FinishIfOutOfWork(); }
 
 std::unique_ptr<CppMarkingState> CppHeap::CreateCppMarkingState() {
   DCHECK(IsMarking());

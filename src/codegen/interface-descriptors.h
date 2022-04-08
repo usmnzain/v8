@@ -69,8 +69,6 @@ namespace internal {
   V(ConstructWithSpread_WithFeedback)                \
   V(ContextOnly)                                     \
   V(CppBuiltinAdaptor)                               \
-  V(DynamicCheckMaps)                                \
-  V(DynamicCheckMapsWithFeedbackVector)              \
   V(FastNewObject)                                   \
   V(ForInPrepare)                                    \
   V(GetIteratorStackParameter)                       \
@@ -116,7 +114,6 @@ namespace internal {
   V(StoreGlobalWithVector)                           \
   V(StoreTransition)                                 \
   V(StoreWithVector)                                 \
-  V(StringAt)                                        \
   V(StringAtAsString)                                \
   V(StringSubstring)                                 \
   IF_TSAN(V, TSANStore)                              \
@@ -213,11 +210,11 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   StackArgumentOrder stack_order() const { return stack_order_; }
 
   void RestrictAllocatableRegisters(const Register* registers, size_t num) {
-    DCHECK_EQ(allocatable_registers_, 0);
+    DCHECK(allocatable_registers_.is_empty());
     for (size_t i = 0; i < num; ++i) {
-      allocatable_registers_ |= registers[i].bit();
+      allocatable_registers_.set(registers[i]);
     }
-    DCHECK_GT(NumRegs(allocatable_registers_), 0);
+    DCHECK(!allocatable_registers_.is_empty());
   }
 
   RegList allocatable_registers() const { return allocatable_registers_; }
@@ -249,7 +246,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
 
   // Specifying the set of registers that could be used by the register
   // allocator. Currently, it's only used by RecordWrite code stub.
-  RegList allocatable_registers_ = 0;
+  RegList allocatable_registers_;
 
   // |registers_params_| defines registers that are used for parameter passing.
   // |machine_types_| defines machine types for resulting values and incomping
@@ -1065,39 +1062,6 @@ class LoadGlobalWithVectorDescriptor
   static constexpr auto registers();
 };
 
-class DynamicCheckMapsDescriptor final
-    : public StaticCallInterfaceDescriptor<DynamicCheckMapsDescriptor> {
- public:
-  DEFINE_PARAMETERS(kMap, kSlot, kHandler)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Int32(),          // return val
-                                    MachineType::TaggedPointer(),  // kMap
-                                    MachineType::IntPtr(),         // kSlot
-                                    MachineType::TaggedSigned())   // kHandler
-
-  DECLARE_DESCRIPTOR(DynamicCheckMapsDescriptor)
-
-  static constexpr auto registers();
-  static constexpr bool kRestrictAllocatableRegisters = true;
-};
-
-class DynamicCheckMapsWithFeedbackVectorDescriptor final
-    : public StaticCallInterfaceDescriptor<
-          DynamicCheckMapsWithFeedbackVectorDescriptor> {
- public:
-  DEFINE_PARAMETERS(kMap, kFeedbackVector, kSlot, kHandler)
-  DEFINE_RESULT_AND_PARAMETER_TYPES(
-      MachineType::Int32(),          // return val
-      MachineType::TaggedPointer(),  // kMap
-      MachineType::TaggedPointer(),  // kFeedbackVector
-      MachineType::IntPtr(),         // kSlot
-      MachineType::TaggedSigned())   // kHandler
-
-  DECLARE_DESCRIPTOR(DynamicCheckMapsWithFeedbackVectorDescriptor)
-
-  static constexpr auto registers();
-  static constexpr bool kRestrictAllocatableRegisters = true;
-};
-
 class FastNewObjectDescriptor
     : public StaticCallInterfaceDescriptor<FastNewObjectDescriptor> {
  public:
@@ -1586,19 +1550,6 @@ class BinarySmiOp_BaselineDescriptor
   DECLARE_DESCRIPTOR(BinarySmiOp_BaselineDescriptor)
 
   static constexpr inline auto registers();
-};
-
-// This desciptor is shared among String.p.charAt/charCodeAt/codePointAt
-// as they all have the same interface.
-class StringAtDescriptor final
-    : public StaticCallInterfaceDescriptor<StringAtDescriptor> {
- public:
-  DEFINE_PARAMETERS(kReceiver, kPosition)
-  // TODO(turbofan): Return untagged value here.
-  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedSigned(),  // result 1
-                                    MachineType::AnyTagged(),     // kReceiver
-                                    MachineType::IntPtr())        // kPosition
-  DECLARE_DESCRIPTOR(StringAtDescriptor)
 };
 
 class StringAtAsStringDescriptor final

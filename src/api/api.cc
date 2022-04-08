@@ -172,6 +172,8 @@
 
 namespace v8 {
 
+static OOMErrorCallback g_oom_error_callback = nullptr;
+
 static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
                                              i::Handle<i::Script> script) {
   i::Handle<i::Object> scriptName(script->GetNameOrSourceURL(), isolate);
@@ -228,8 +230,9 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* isolate, const char* location,
     memset(last_few_messages, 0x0BADC0DE, Heap::kTraceRingBufferSize + 1);
     memset(js_stacktrace, 0x0BADC0DE, Heap::kStacktraceBufferSize + 1);
     memset(&heap_stats, 0xBADC0DE, sizeof(heap_stats));
-    // Note that the embedder's oom handler is also not available and therefore
-    // won't be called in this case. We just crash.
+    // Give the embedder a chance to handle the condition. If it doesn't,
+    // just crash.
+    if (g_oom_error_callback) g_oom_error_callback(location, is_heap_oom);
     FATAL("Fatal process out of memory: %s", location);
     UNREACHABLE();
   }
@@ -304,6 +307,7 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* isolate, const char* location,
     }
   }
   Utils::ReportOOMFailure(isolate, location, is_heap_oom);
+  if (g_oom_error_callback) g_oom_error_callback(location, is_heap_oom);
   // If the fatal error handler returns, we stop execution.
   FATAL("API fatal error handler returned after process out of memory");
 }
@@ -807,17 +811,16 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 
 namespace internal {
 
-i::Address* GlobalizeTracedReference(
-    i::Isolate* isolate, i::Address* obj, internal::Address* slot,
-    GlobalHandleDestructionMode destruction_mode,
-    GlobalHandleStoreMode store_mode) {
+i::Address* GlobalizeTracedReference(i::Isolate* isolate, i::Address* obj,
+                                     internal::Address* slot,
+                                     GlobalHandleStoreMode store_mode) {
   LOG_API(isolate, TracedGlobal, New);
 #ifdef DEBUG
   Utils::ApiCheck((slot != nullptr), "v8::GlobalizeTracedReference",
                   "the address slot must be not null");
 #endif
-  i::Handle<i::Object> result = isolate->global_handles()->CreateTraced(
-      *obj, slot, destruction_mode, store_mode);
+  i::Handle<i::Object> result =
+      isolate->global_handles()->CreateTraced(*obj, slot, store_mode);
 #ifdef VERIFY_HEAP
   if (i::FLAG_verify_heap) {
     i::Object(*obj).ObjectVerify(isolate);
@@ -826,24 +829,17 @@ i::Address* GlobalizeTracedReference(
   return result.location();
 }
 
-void MoveTracedGlobalReference(internal::Address** from,
-                               internal::Address** to) {
-  GlobalHandles::MoveTracedGlobal(from, to);
+void MoveTracedReference(internal::Address** from, internal::Address** to) {
+  GlobalHandles::MoveTracedReference(from, to);
 }
 
-void CopyTracedGlobalReference(const internal::Address* const* from,
-                               internal::Address** to) {
-  GlobalHandles::CopyTracedGlobal(from, to);
+void CopyTracedReference(const internal::Address* const* from,
+                         internal::Address** to) {
+  GlobalHandles::CopyTracedReference(from, to);
 }
 
-void DisposeTracedGlobal(internal::Address* location) {
-  GlobalHandles::DestroyTraced(location);
-}
-
-void SetFinalizationCallbackTraced(internal::Address* location, void* parameter,
-                                   WeakCallbackInfo<void>::Callback callback) {
-  GlobalHandles::SetFinalizationCallbackForTraced(location, parameter,
-                                                  callback);
+void DisposeTracedReference(internal::Address* location) {
+  GlobalHandles::DestroyTracedReference(location);
 }
 
 }  // namespace internal
@@ -1638,6 +1634,19 @@ static void TemplateSetAccessor(
   i::ApiNatives::AddNativeDataProperty(isolate, info, accessor_info);
 }
 
+void Template::SetNativeDataProperty(v8::Local<String> name,
+                                     AccessorGetterCallback getter,
+                                     AccessorSetterCallback setter,
+                                     v8::Local<Value> data,
+                                     PropertyAttribute attribute,
+                                     AccessControl settings,
+                                     SideEffectType getter_side_effect_type,
+                                     SideEffectType setter_side_effect_type) {
+  TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
+                      Local<AccessorSignature>(), true, false,
+                      getter_side_effect_type, setter_side_effect_type);
+}
+
 void Template::SetNativeDataProperty(
     v8::Local<String> name, AccessorGetterCallback getter,
     AccessorSetterCallback setter, v8::Local<Value> data,
@@ -1647,6 +1656,19 @@ void Template::SetNativeDataProperty(
   TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
                       signature, true, false, getter_side_effect_type,
                       setter_side_effect_type);
+}
+
+void Template::SetNativeDataProperty(v8::Local<Name> name,
+                                     AccessorNameGetterCallback getter,
+                                     AccessorNameSetterCallback setter,
+                                     v8::Local<Value> data,
+                                     PropertyAttribute attribute,
+                                     AccessControl settings,
+                                     SideEffectType getter_side_effect_type,
+                                     SideEffectType setter_side_effect_type) {
+  TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
+                      Local<AccessorSignature>(), true, false,
+                      getter_side_effect_type, setter_side_effect_type);
 }
 
 void Template::SetNativeDataProperty(
@@ -1681,6 +1703,32 @@ void Template::SetIntrinsicDataProperty(Local<Name> name, Intrinsic intrinsic,
   i::ApiNatives::AddDataProperty(isolate, templ, Utils::OpenHandle(*name),
                                  intrinsic,
                                  static_cast<i::PropertyAttributes>(attribute));
+}
+
+void ObjectTemplate::SetAccessor(v8::Local<String> name,
+                                 AccessorGetterCallback getter,
+                                 AccessorSetterCallback setter,
+                                 v8::Local<Value> data, AccessControl settings,
+                                 PropertyAttribute attribute,
+                                 SideEffectType getter_side_effect_type,
+                                 SideEffectType setter_side_effect_type) {
+  TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
+                      Local<AccessorSignature>(),
+                      i::FLAG_disable_old_api_accessors, false,
+                      getter_side_effect_type, setter_side_effect_type);
+}
+
+void ObjectTemplate::SetAccessor(v8::Local<Name> name,
+                                 AccessorNameGetterCallback getter,
+                                 AccessorNameSetterCallback setter,
+                                 v8::Local<Value> data, AccessControl settings,
+                                 PropertyAttribute attribute,
+                                 SideEffectType getter_side_effect_type,
+                                 SideEffectType setter_side_effect_type) {
+  TemplateSetAccessor(this, name, getter, setter, data, settings, attribute,
+                      Local<AccessorSignature>(),
+                      i::FLAG_disable_old_api_accessors, false,
+                      getter_side_effect_type, setter_side_effect_type);
 }
 
 void ObjectTemplate::SetAccessor(v8::Local<String> name,
@@ -2537,29 +2585,6 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(
   return ToApiHandle<Module>(i_isolate->factory()->NewSourceTextModule(shared));
 }
 
-namespace {
-bool IsIdentifier(i::Isolate* isolate, i::Handle<i::String> string) {
-  string = i::String::Flatten(isolate, string);
-  const int length = string->length();
-  if (length == 0) return false;
-  if (!i::IsIdentifierStart(string->Get(0))) return false;
-  i::DisallowGarbageCollection no_gc;
-  i::String::FlatContent flat = string->GetFlatContent(no_gc);
-  if (flat.IsOneByte()) {
-    auto vector = flat.ToOneByteVector();
-    for (int i = 1; i < length; i++) {
-      if (!i::IsIdentifierPart(vector[i])) return false;
-    }
-  } else {
-    auto vector = flat.ToUC16Vector();
-    for (int i = 1; i < length; i++) {
-      if (!i::IsIdentifierPart(vector[i])) return false;
-    }
-  }
-  return true;
-}
-}  // namespace
-
 // static
 V8_WARN_UNUSED_RESULT MaybeLocal<Function> ScriptCompiler::CompileFunction(
     Local<Context> context, Source* source, size_t arguments_count,
@@ -2608,7 +2633,7 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInternal(
         isolate->factory()->NewFixedArray(static_cast<int>(arguments_count));
     for (int i = 0; i < static_cast<int>(arguments_count); i++) {
       i::Handle<i::String> argument = Utils::OpenHandle(*arguments[i]);
-      if (!IsIdentifier(isolate, argument)) return Local<Function>();
+      if (!i::String::IsIdentifier(isolate, argument)) return Local<Function>();
       arguments_list->set(i, *argument);
     }
 
@@ -3633,15 +3658,7 @@ bool Value::IsBoolean() const { return Utils::OpenHandle(this)->IsBoolean(); }
 
 bool Value::IsExternal() const {
   i::Object obj = *Utils::OpenHandle(this);
-  if (!obj.IsHeapObject()) return false;
-  i::HeapObject heap_obj = i::HeapObject::cast(obj);
-  // Check the instance type is JS_OBJECT (instance type of Externals) before
-  // attempting to get the Isolate since that guarantees the object is writable
-  // and GetIsolate will work.
-  if (heap_obj.map().instance_type() != i::JS_OBJECT_TYPE) return false;
-  i::Isolate* isolate = i::JSObject::cast(heap_obj).GetIsolate();
-  ASSERT_NO_SCRIPT_NO_EXCEPTION(isolate);
-  return heap_obj.IsExternal(isolate);
+  return obj.IsJSExternalObject();
 }
 
 bool Value::IsInt32() const {
@@ -5100,7 +5117,8 @@ bool v8::Object::IsConstructor() const {
 
 bool v8::Object::IsApiWrapper() const {
   auto self = i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
-  return self->IsApiWrapper();
+  // Objects with embedder fields can wrap API objects.
+  return self->MayHaveEmbedderFields();
 }
 
 bool v8::Object::IsUndetectable() const {
@@ -5996,15 +6014,6 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
 #endif  // VERIFY_HEAP
 }
 
-static void* ExternalValue(i::Object obj) {
-  // Obscure semantics for undefined, but somehow checked in our unit tests...
-  if (obj.IsUndefined()) {
-    return nullptr;
-  }
-  i::Object foreign = i::JSObject::cast(obj).GetEmbedderField(0);
-  return reinterpret_cast<void*>(i::Foreign::cast(foreign).foreign_address());
-}
-
 // --- E n v i r o n m e n t ---
 
 void v8::V8::InitializePlatform(Platform* platform) {
@@ -6100,6 +6109,11 @@ void V8::SetUnhandledExceptionCallback(
 #endif  // V8_OS_WIN64
 }
 #endif  // V8_OS_WIN
+
+void v8::V8::SetFatalMemoryErrorCallback(
+    v8::OOMErrorCallback oom_error_callback) {
+  g_oom_error_callback = oom_error_callback;
+}
 
 void v8::V8::SetEntropySource(EntropySource entropy_source) {
   base::RandomNumberGenerator::SetEntropySource(entropy_source);
@@ -6732,6 +6746,11 @@ bool FunctionTemplate::IsLeafTemplateForApiObject(
 
 Local<External> v8::External::New(Isolate* isolate, void* value) {
   STATIC_ASSERT(sizeof(value) == sizeof(i::Address));
+  // Nullptr is not allowed here because serialization/deserialization of
+  // nullptr external api references is not possible as nullptr is used as an
+  // external_references table terminator, see v8::SnapshotCreator()
+  // constructors.
+  DCHECK_NOT_NULL(value);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, External, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -6740,7 +6759,8 @@ Local<External> v8::External::New(Isolate* isolate, void* value) {
 }
 
 void* External::Value() const {
-  return ExternalValue(*Utils::OpenHandle(this));
+  auto self = Utils::OpenHandle(this);
+  return i::JSExternalObject::cast(*self).value();
 }
 
 // anonymous namespace for string creation helper functions
@@ -8531,10 +8551,11 @@ void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
 void Isolate::RequestGarbageCollectionForTesting(
     GarbageCollectionType type,
     EmbedderHeapTracer::EmbedderStackState stack_state) {
+  base::Optional<i::EmbedderStackStateScope> stack_scope;
   if (type == kFullGarbageCollection) {
-    reinterpret_cast<i::Isolate*>(this)
-        ->heap()
-        ->SetEmbedderStackStateForNextFinalization(stack_state);
+    stack_scope.emplace(reinterpret_cast<i::Isolate*>(this)->heap(),
+                        i::EmbedderStackStateScope::kExplicitInvocation,
+                        stack_state);
   }
   RequestGarbageCollectionForTesting(type);
 }
@@ -8651,7 +8672,8 @@ void Isolate::Initialize(Isolate* isolate,
 #endif  // defined(V8_OS_WIN)
 
     if (code_event_handler) {
-      isolate->SetJitCodeEventHandler(kJitCodeEventDefault, code_event_handler);
+      isolate->SetJitCodeEventHandler(kJitCodeEventEnumExisting,
+                                      code_event_handler);
     }
   }
 
@@ -9910,15 +9932,22 @@ void CpuProfiler::SetUsePreciseSampling(bool use_precise_sampling) {
       use_precise_sampling);
 }
 
-CpuProfilingStatus CpuProfiler::StartProfiling(
+CpuProfilingResult CpuProfiler::Start(
+    CpuProfilingOptions options,
+    std::unique_ptr<DiscardedSamplesDelegate> delegate) {
+  return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
+      options, std::move(delegate));
+}
+
+CpuProfilingResult CpuProfiler::Start(
     Local<String> title, CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
   return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
       *Utils::OpenHandle(*title), options, std::move(delegate));
 }
 
-CpuProfilingStatus CpuProfiler::StartProfiling(Local<String> title,
-                                               bool record_samples) {
+CpuProfilingResult CpuProfiler::Start(Local<String> title,
+                                      bool record_samples) {
   CpuProfilingOptions options(
       kLeafNodeLineNumbers,
       record_samples ? CpuProfilingOptions::kNoSampleLimit : 0);
@@ -9926,19 +9955,42 @@ CpuProfilingStatus CpuProfiler::StartProfiling(Local<String> title,
       *Utils::OpenHandle(*title), options);
 }
 
+CpuProfilingResult CpuProfiler::Start(Local<String> title,
+                                      CpuProfilingMode mode,
+                                      bool record_samples,
+                                      unsigned max_samples) {
+  CpuProfilingOptions options(mode, record_samples ? max_samples : 0);
+  return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
+      *Utils::OpenHandle(*title), options);
+}
+
+CpuProfilingStatus CpuProfiler::StartProfiling(
+    Local<String> title, CpuProfilingOptions options,
+    std::unique_ptr<DiscardedSamplesDelegate> delegate) {
+  return Start(title, options, std::move(delegate)).status;
+}
+
+CpuProfilingStatus CpuProfiler::StartProfiling(Local<String> title,
+                                               bool record_samples) {
+  return Start(title, record_samples).status;
+}
+
 CpuProfilingStatus CpuProfiler::StartProfiling(Local<String> title,
                                                CpuProfilingMode mode,
                                                bool record_samples,
                                                unsigned max_samples) {
-  CpuProfilingOptions options(mode, record_samples ? max_samples : 0);
-  return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
-      *Utils::OpenHandle(*title), options);
+  return Start(title, mode, record_samples, max_samples).status;
 }
 
 CpuProfile* CpuProfiler::StopProfiling(Local<String> title) {
   return reinterpret_cast<CpuProfile*>(
       reinterpret_cast<i::CpuProfiler*>(this)->StopProfiling(
           *Utils::OpenHandle(*title)));
+}
+
+CpuProfile* CpuProfiler::Stop(ProfilerId id) {
+  return reinterpret_cast<CpuProfile*>(
+      reinterpret_cast<i::CpuProfiler*>(this)->StopProfiling(id));
 }
 
 void CpuProfiler::UseDetailedSourcePositionsForProfiling(Isolate* isolate) {
@@ -10283,11 +10335,6 @@ void EmbedderHeapTracer::IterateTracedGlobalHandles(
 
 bool EmbedderHeapTracer::IsRootForNonTracingGC(
     const v8::TracedReference<v8::Value>& handle) {
-  return true;
-}
-
-bool EmbedderHeapTracer::IsRootForNonTracingGC(
-    const v8::TracedGlobal<v8::Value>& handle) {
   return true;
 }
 

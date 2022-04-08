@@ -402,7 +402,7 @@ extern enum MessageTemplate {
   kRegExpNonRegExp,
   kRegExpNonObject,
   kPromiseNonCallable,
-  kNotAPromise,
+  kPromiseNewTargetUndefined,
   kResolverNotAFunction,
   kTooManyElementsInPromiseCombinator,
   kToRadixFormatRange,
@@ -575,7 +575,8 @@ extern class Filler extends HeapObject generates 'TNode<HeapObject>';
 // Like JSObject, but created from API function.
 @apiExposedInstanceTypeValue(0x422)
 @doNotGenerateCast
-extern class JSApiObject extends JSObject generates 'TNode<JSObject>';
+extern class JSApiObject extends JSObjectWithEmbedderSlots
+    generates 'TNode<JSObject>';
 
 // TODO(gsathya): This only exists to make JSApiObject instance type into a
 // range.
@@ -671,7 +672,7 @@ extern transitioning builtin SetProperty(implicit context: Context)(
     JSAny, JSAny, JSAny): JSAny;
 extern transitioning builtin SetPropertyIgnoreAttributes(
     implicit context: Context)(JSObject, String, JSAny, Smi): JSAny;
-extern transitioning builtin SetPropertyInLiteral(implicit context: Context)(
+extern transitioning builtin CreateDataProperty(implicit context: Context)(
     JSAny, JSAny, JSAny): JSAny;
 extern transitioning builtin DeleteProperty(implicit context: Context)(
     JSAny, JSAny | PrivateSymbol, LanguageModeSmi): Boolean;

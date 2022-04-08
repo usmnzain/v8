@@ -74,7 +74,6 @@ DOM.defineCustomElement(
         const flameStack = [];
         const ticks = this._timeline.values;
         let maxDepth = 0;
-
         for (let tickIndex = 0; tickIndex < ticks.length; tickIndex++) {
           const tick = ticks[tickIndex];
           const tickStack = tick.stack;
@@ -152,7 +151,7 @@ class Annotations {
     const start = this._flames.find(time);
     let offset = 0;
     // Draw annotations gradually outwards starting form the given time.
-    let deadline = performance.now() + 500;
+    let deadline = performance.now() + 100;
     for (let range = 0; range < this._flames.length; range += 10000) {
       this._markFlames(start - range, start - offset);
       this._markFlames(start + offset, start + range);
@@ -165,7 +164,7 @@ class Annotations {
         // Abort if we started another update asynchronously.
         if (this._logEntry != logEntry) return;
 
-        deadline = performance.now() + 500;
+        deadline = performance.now() + 100;
       }
       this._drawBuffer();
     }

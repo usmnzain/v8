@@ -751,9 +751,15 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 
   BIND(&api_getter);
   {
-    GotoIf(IsSideEffectFreeDebuggingActive(), &slow);
-    HandleLoadAccessor(p, CAST(holder), handler_word, CAST(handler),
-                       handler_kind, exit_point);
+    if (p->receiver() != p->lookup_start_object()) {
+      // Force super ICs using API getters into the slow path, so that we get
+      // the correct receiver checks.
+      Goto(&slow);
+    } else {
+      GotoIf(IsSideEffectFreeDebuggingActive(), &slow);
+      HandleLoadAccessor(p, CAST(holder), handler_word, CAST(handler),
+                         handler_kind, exit_point);
+    }
   }
 
   BIND(&proxy);
@@ -1260,44 +1266,47 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index);
     NameDictionaryLookup<PropertyDictionary>(
-        properties, CAST(p->name()), &dictionary_found, &var_name_index, miss);
-    BIND(&dictionary_found);
-    {
-      if (p->IsDefineOwn()) {
-        // Take slow path to throw if a private name already exists.
-        GotoIf(IsPrivateSymbol(CAST(p->name())), &if_slow);
-      }
-      Label if_constant(this), done(this);
-      TNode<Uint32T> details =
-          LoadDetailsByKeyIndex(properties, var_name_index.value());
-      // Check that the property is a writable data property (no accessor).
-      const int kTypeAndReadOnlyMask = PropertyDetails::KindField::kMask |
-                                       PropertyDetails::kAttributesReadOnlyMask;
-      STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
-      GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
+        properties, CAST(p->name()),
+        p->IsAnyDefineOwn() ? &if_slow : &dictionary_found, &var_name_index,
+        miss);
 
-      if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
-        GotoIf(IsPropertyDetailsConst(details), &if_constant);
-      }
+    // When dealing with class fields defined with DefineKeyedOwnIC or
+    // DefineNamedOwnIC, use the slow path to check the existing property.
+    if (!p->IsAnyDefineOwn()) {
+      BIND(&dictionary_found);
+      {
+        Label if_constant(this), done(this);
+        TNode<Uint32T> details =
+            LoadDetailsByKeyIndex(properties, var_name_index.value());
+        // Check that the property is a writable data property (no accessor).
+        const int kTypeAndReadOnlyMask =
+            PropertyDetails::KindField::kMask |
+            PropertyDetails::kAttributesReadOnlyMask;
+        STATIC_ASSERT(static_cast<int>(PropertyKind::kData) == 0);
+        GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
 
-      StoreValueByKeyIndex<PropertyDictionary>(
-          properties, var_name_index.value(), p->value());
-      Return(p->value());
-
-      if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
-        BIND(&if_constant);
-        {
-          TNode<Object> prev_value =
-              LoadValueByKeyIndex(properties, var_name_index.value());
-          BranchIfSameValue(prev_value, p->value(), &done, miss,
-                            SameValueMode::kNumbersOnly);
+        if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+          GotoIf(IsPropertyDetailsConst(details), &if_constant);
         }
 
-        BIND(&done);
+        StoreValueByKeyIndex<PropertyDictionary>(
+            properties, var_name_index.value(), p->value());
         Return(p->value());
+
+        if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) {
+          BIND(&if_constant);
+          {
+            TNode<Object> prev_value =
+                LoadValueByKeyIndex(properties, var_name_index.value());
+            BranchIfSameValue(prev_value, p->value(), &done, miss,
+                              SameValueMode::kNumbersOnly);
+          }
+
+          BIND(&done);
+          Return(p->value());
+        }
       }
     }
-
     BIND(&if_fast_smi);
     {
       Label data(this), accessor(this), shared_struct_field(this),
@@ -1344,10 +1353,10 @@ void AccessorAssembler::HandleStoreICHandlerCase(
                         p->slot(), p->vector(), p->receiver(), p->name());
       } else {
         Runtime::FunctionId id;
-        if (p->IsStoreOwn()) {
-          id = Runtime::kStoreOwnIC_Slow;
-        } else if (p->IsDefineOwn()) {
-          id = Runtime::kKeyedDefineOwnIC_Slow;
+        if (p->IsDefineNamedOwn()) {
+          id = Runtime::kDefineNamedOwnIC_Slow;
+        } else if (p->IsDefineKeyedOwn()) {
+          id = Runtime::kDefineKeyedOwnIC_Slow;
         } else {
           id = Runtime::kKeyedStoreIC_Slow;
         }
@@ -1395,7 +1404,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
       ExitPoint direct_exit(this);
       // StoreGlobalIC_PropertyCellCase doesn't properly handle private names
       // but they are not expected here anyway.
-      CSA_DCHECK(this, BoolConstant(!p->IsDefineOwn()));
+      CSA_DCHECK(this, BoolConstant(!p->IsDefineKeyedOwn()));
       StoreGlobalIC_PropertyCellCase(property_cell, p->value(), &direct_exit,
                                      miss);
     }
@@ -1403,7 +1412,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     {
       TNode<Map> map = CAST(map_or_property_cell);
       HandleStoreICTransitionMapHandlerCase(p, map, miss,
-                                            p->IsAnyStoreOwn()
+                                            p->IsAnyDefineOwn()
                                                 ? kDontCheckPrototypeValidity
                                                 : kCheckPrototypeValidity);
       Return(p->value());
@@ -1878,10 +1887,10 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       if (ic_mode == ICMode::kGlobalIC) {
         TailCallRuntime(Runtime::kStoreGlobalIC_Slow, p->context(), p->value(),
                         p->slot(), p->vector(), p->receiver(), p->name());
-      } else if (p->IsAnyStoreOwn()) {
-        // DefineOwnIC and StoreOwnIC shouldn't be using slow proto handlers,
-        // otherwise proper slow function must be called.
-        CSA_DCHECK(this, BoolConstant(!p->IsAnyStoreOwn()));
+      } else if (p->IsAnyDefineOwn()) {
+        // DefineKeyedOwnIC and DefineNamedOwnIC shouldn't be using slow proto
+        // handlers, otherwise proper slow function must be called.
+        CSA_DCHECK(this, BoolConstant(!p->IsAnyDefineOwn()));
         Unreachable();
       } else {
         TailCallRuntime(Runtime::kKeyedStoreIC_Slow, p->context(), p->value(),
@@ -1964,7 +1973,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       ExitPoint direct_exit(this);
       // StoreGlobalIC_PropertyCellCase doesn't properly handle private names
       // but they are not expected here anyway.
-      CSA_DCHECK(this, BoolConstant(!p->IsDefineOwn()));
+      CSA_DCHECK(this, BoolConstant(!p->IsDefineKeyedOwn()));
       StoreGlobalIC_PropertyCellCase(CAST(holder), p->value(), &direct_exit,
                                      miss);
     }
@@ -3731,16 +3740,18 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
 
   BIND(&no_feedback);
   {
-    auto builtin = p->IsStoreOwn() ? Builtin::kStoreOwnIC_NoFeedback
-                                   : Builtin::kStoreIC_NoFeedback;
+    // TODO(v8:12548): refactor SetNamedIC as a subclass of StoreIC, which can
+    // be called here and below when !p->IsDefineNamedOwn().
+    auto builtin = p->IsDefineNamedOwn() ? Builtin::kDefineNamedOwnIC_NoFeedback
+                                         : Builtin::kStoreIC_NoFeedback;
     TailCallBuiltin(builtin, p->context(), p->receiver(), p->name(), p->value(),
                     p->slot());
   }
 
   BIND(&miss);
   {
-    auto runtime =
-        p->IsStoreOwn() ? Runtime::kStoreOwnIC_Miss : Runtime::kStoreIC_Miss;
+    auto runtime = p->IsDefineNamedOwn() ? Runtime::kDefineNamedOwnIC_Miss
+                                         : Runtime::kStoreIC_Miss;
     TailCallRuntime(runtime, p->context(), p->value(), p->slot(), p->vector(),
                     p->receiver(), p->name());
   }
@@ -3953,7 +3964,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
   }
 }
 
-void AccessorAssembler::KeyedDefineOwnIC(const StoreICParameters* p) {
+void AccessorAssembler::DefineKeyedOwnIC(const StoreICParameters* p) {
   Label miss(this, Label::kDeferred);
   {
     TVARIABLE(MaybeObject, var_handler);
@@ -3975,7 +3986,7 @@ void AccessorAssembler::KeyedDefineOwnIC(const StoreICParameters* p) {
                            &if_handler, &var_handler, &try_polymorphic);
     BIND(&if_handler);
     {
-      Comment("KeyedDefineOwnIC_if_handler");
+      Comment("DefineKeyedOwnIC_if_handler");
       HandleStoreICHandlerCase(p, var_handler.value(), &miss,
                                ICMode::kNonGlobalIC, kSupportElements);
     }
@@ -3984,7 +3995,7 @@ void AccessorAssembler::KeyedDefineOwnIC(const StoreICParameters* p) {
     TNode<HeapObject> strong_feedback = GetHeapObjectIfStrong(feedback, &miss);
     {
       // CheckPolymorphic case.
-      Comment("KeyedDefineOwnIC_try_polymorphic");
+      Comment("DefineKeyedOwnIC_try_polymorphic");
       GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)),
                 &try_megamorphic);
       HandlePolymorphicCase(receiver_map, CAST(strong_feedback), &if_handler,
@@ -3994,21 +4005,21 @@ void AccessorAssembler::KeyedDefineOwnIC(const StoreICParameters* p) {
     BIND(&try_megamorphic);
     {
       // Check megamorphic case.
-      Comment("KeyedDefineOwnIC_try_megamorphic");
+      Comment("DefineKeyedOwnIC_try_megamorphic");
       Branch(TaggedEqual(strong_feedback, MegamorphicSymbolConstant()),
              &no_feedback, &try_polymorphic_name);
     }
 
     BIND(&no_feedback);
     {
-      TailCallBuiltin(Builtin::kKeyedDefineOwnIC_Megamorphic, p->context(),
+      TailCallBuiltin(Builtin::kDefineKeyedOwnIC_Megamorphic, p->context(),
                       p->receiver(), p->name(), p->value(), p->slot());
     }
 
     BIND(&try_polymorphic_name);
     {
       // We might have a name in feedback, and a fixed array in the next slot.
-      Comment("KeyedDefineOwnIC_try_polymorphic_name");
+      Comment("DefineKeyedOwnIC_try_polymorphic_name");
       GotoIfNot(TaggedEqual(strong_feedback, p->name()), &miss);
       // If the name comparison succeeded, we know we have a feedback vector
       // with at least one map/handler pair.
@@ -4021,8 +4032,8 @@ void AccessorAssembler::KeyedDefineOwnIC(const StoreICParameters* p) {
   }
   BIND(&miss);
   {
-    Comment("KeyedDefineOwnIC_miss");
-    TailCallRuntime(Runtime::kKeyedDefineOwnIC_Miss, p->context(), p->value(),
+    Comment("DefineKeyedOwnIC_miss");
+    TailCallRuntime(Runtime::kDefineKeyedOwnIC_Miss, p->context(), p->value(),
                     p->slot(), p->vector(), p->receiver(), p->name());
   }
 }
@@ -4123,7 +4134,7 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
   BIND(&no_feedback);
   {
     Comment("StoreInArrayLiteralIC_NoFeedback");
-    TailCallBuiltin(Builtin::kSetPropertyInLiteral, p->context(), p->receiver(),
+    TailCallBuiltin(Builtin::kCreateDataProperty, p->context(), p->receiver(),
                     p->name(), p->value());
   }
 
@@ -4570,7 +4581,7 @@ void AccessorAssembler::GenerateStoreICBaseline() {
                   vector);
 }
 
-void AccessorAssembler::GenerateStoreOwnIC() {
+void AccessorAssembler::GenerateDefineNamedOwnIC() {
   using Descriptor = StoreWithVectorDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
@@ -4581,11 +4592,13 @@ void AccessorAssembler::GenerateStoreOwnIC() {
   auto context = Parameter<Context>(Descriptor::kContext);
 
   StoreICParameters p(context, receiver, name, value, slot, vector,
-                      StoreICMode::kStoreOwn);
+                      StoreICMode::kDefineNamedOwn);
+  // StoreIC is a generic helper than handle both set and define own
+  // named stores.
   StoreIC(&p);
 }
 
-void AccessorAssembler::GenerateStoreOwnICTrampoline() {
+void AccessorAssembler::GenerateDefineNamedOwnICTrampoline() {
   using Descriptor = StoreDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
@@ -4595,11 +4608,11 @@ void AccessorAssembler::GenerateStoreOwnICTrampoline() {
   auto context = Parameter<Context>(Descriptor::kContext);
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
-  TailCallBuiltin(Builtin::kStoreOwnIC, context, receiver, name, value, slot,
-                  vector);
+  TailCallBuiltin(Builtin::kDefineNamedOwnIC, context, receiver, name, value,
+                  slot, vector);
 }
 
-void AccessorAssembler::GenerateStoreOwnICBaseline() {
+void AccessorAssembler::GenerateDefineNamedOwnICBaseline() {
   using Descriptor = StoreWithVectorDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
@@ -4609,8 +4622,8 @@ void AccessorAssembler::GenerateStoreOwnICBaseline() {
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
   TNode<Context> context = LoadContextFromBaseline();
 
-  TailCallBuiltin(Builtin::kStoreOwnIC, context, receiver, name, value, slot,
-                  vector);
+  TailCallBuiltin(Builtin::kDefineNamedOwnIC, context, receiver, name, value,
+                  slot, vector);
 }
 
 void AccessorAssembler::GenerateKeyedStoreIC() {
@@ -4656,7 +4669,7 @@ void AccessorAssembler::GenerateKeyedStoreICBaseline() {
                   vector);
 }
 
-void AccessorAssembler::GenerateKeyedDefineOwnIC() {
+void AccessorAssembler::GenerateDefineKeyedOwnIC() {
   using Descriptor = StoreWithVectorDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
@@ -4667,11 +4680,11 @@ void AccessorAssembler::GenerateKeyedDefineOwnIC() {
   auto context = Parameter<Context>(Descriptor::kContext);
 
   StoreICParameters p(context, receiver, name, value, slot, vector,
-                      StoreICMode::kDefineOwn);
-  KeyedDefineOwnIC(&p);
+                      StoreICMode::kDefineKeyedOwn);
+  DefineKeyedOwnIC(&p);
 }
 
-void AccessorAssembler::GenerateKeyedDefineOwnICTrampoline() {
+void AccessorAssembler::GenerateDefineKeyedOwnICTrampoline() {
   using Descriptor = StoreDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
@@ -4681,11 +4694,11 @@ void AccessorAssembler::GenerateKeyedDefineOwnICTrampoline() {
   auto context = Parameter<Context>(Descriptor::kContext);
   TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
 
-  TailCallBuiltin(Builtin::kKeyedDefineOwnIC, context, receiver, name, value,
+  TailCallBuiltin(Builtin::kDefineKeyedOwnIC, context, receiver, name, value,
                   slot, vector);
 }
 
-void AccessorAssembler::GenerateKeyedDefineOwnICBaseline() {
+void AccessorAssembler::GenerateDefineKeyedOwnICBaseline() {
   using Descriptor = StoreBaselineDescriptor;
 
   auto receiver = Parameter<Object>(Descriptor::kReceiver);
@@ -4695,7 +4708,7 @@ void AccessorAssembler::GenerateKeyedDefineOwnICBaseline() {
   TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
   TNode<Context> context = LoadContextFromBaseline();
 
-  TailCallBuiltin(Builtin::kKeyedDefineOwnIC, context, receiver, name, value,
+  TailCallBuiltin(Builtin::kDefineKeyedOwnIC, context, receiver, name, value,
                   slot, vector);
 }
 
@@ -4769,7 +4782,7 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
   ForEachEnumerableOwnProperty(
       context, source_map, CAST(source), kPropertyAdditionOrder,
       [=](TNode<Name> key, TNode<Object> value) {
-        SetPropertyInLiteral(context, result, key, value);
+        CreateDataProperty(context, result, key, value);
       },
       &call_runtime);
   Goto(&done);

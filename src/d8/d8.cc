@@ -1441,9 +1441,12 @@ bool Shell::ExecuteWebSnapshot(Isolate* isolate, const char* file_name) {
   if (length == 0) {
     isolate->ThrowError("Could not read the web snapshot file");
   } else {
-    i::WebSnapshotDeserializer deserializer(isolate, snapshot_data.get(),
-                                            static_cast<size_t>(length));
-    success = deserializer.Deserialize();
+    for (int r = 0; r < DeserializationRunCount(); ++r) {
+      bool skip_exports = r > 0;
+      i::WebSnapshotDeserializer deserializer(isolate, snapshot_data.get(),
+                                              static_cast<size_t>(length));
+      success = deserializer.Deserialize({}, skip_exports);
+    }
   }
   if (!success) {
     CHECK(try_catch.HasCaught());
@@ -1471,14 +1474,17 @@ bool Shell::LoadJSON(Isolate* isolate, const char* file_name) {
   std::stringstream stream(data.get());
   std::string line;
   while (std::getline(stream, line, '\n')) {
-    Local<String> source =
-        String::NewFromUtf8(isolate, line.c_str()).ToLocalChecked();
-    MaybeLocal<Value> maybe_value = JSON::Parse(realm, source);
-    Local<Value> value;
-    if (!maybe_value.ToLocal(&value)) {
-      DCHECK(try_catch.HasCaught());
-      ReportException(isolate, &try_catch);
-      return false;
+    for (int r = 0; r < DeserializationRunCount(); ++r) {
+      Local<String> source =
+          String::NewFromUtf8(isolate, line.c_str()).ToLocalChecked();
+      MaybeLocal<Value> maybe_value = JSON::Parse(realm, source);
+
+      Local<Value> value;
+      if (!maybe_value.ToLocal(&value)) {
+        DCHECK(try_catch.HasCaught());
+        ReportException(isolate, &try_catch);
+        return false;
+      }
     }
   }
   return true;
@@ -1783,8 +1789,8 @@ MaybeLocal<Context> Shell::CreateRealm(
   Local<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   Local<Context> context =
       Context::New(isolate, nullptr, global_template, global_object);
-  DCHECK(!try_catch.HasCaught());
   if (context.IsEmpty()) return MaybeLocal<Context>();
+  DCHECK(!try_catch.HasCaught());
   InitializeModuleEmbedderData(context);
   data->realms_[index].Reset(isolate, context);
   data->realms_[index].AnnotateStrongRetainer(kGlobalHandleLabel);
@@ -2629,7 +2635,6 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
   int exit_code = (*args)[0]
                       ->Int32Value(args->GetIsolate()->GetCurrentContext())
                       .FromMaybe(0);
-  WaitForRunningWorkers();
   Isolate* isolate = args->GetIsolate();
   isolate->Exit();
 
@@ -3275,7 +3280,8 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   Local<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   EscapableHandleScope handle_scope(isolate);
   Local<Context> context = Context::New(isolate, nullptr, global_template);
-  DCHECK(!context.IsEmpty());
+  DCHECK_IMPLIES(context.IsEmpty(), isolate->IsExecutionTerminating());
+  if (context.IsEmpty()) return {};
   if (i::FLAG_perf_prof_annotate_wasm || i::FLAG_vtune_prof_annotate_wasm) {
     isolate->SetWasmLoadSourceMapCallback(Shell::WasmLoadSourceMapCallback);
   }
@@ -3563,32 +3569,12 @@ V8_NOINLINE void FuzzerMonitor::UseOfUninitializedValue() {
 #endif
 }
 
-static FILE* FOpen(const char* path, const char* mode) {
-#if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
-  FILE* result;
-  if (fopen_s(&result, path, mode) == 0) {
-    return result;
-  } else {
-    return nullptr;
-  }
-#else
-  FILE* file = base::Fopen(path, mode);
-  if (file == nullptr) return nullptr;
-  struct stat file_stat;
-  if (fstat(fileno(file), &file_stat) != 0) return nullptr;
-  bool is_regular_file = ((file_stat.st_mode & S_IFREG) != 0);
-  if (is_regular_file) return file;
-  base::Fclose(file);
-  return nullptr;
-#endif
-}
-
 char* Shell::ReadChars(const char* name, int* size_out) {
   if (options.read_from_tcp_port >= 0) {
     return ReadCharsFromTcpPort(name, size_out);
   }
 
-  FILE* file = FOpen(name, "rb");
+  FILE* file = base::OS::FOpen(name, "rb");
   if (file == nullptr) return nullptr;
 
   fseek(file, 0, SEEK_END);
@@ -4195,6 +4181,10 @@ void Worker::Terminate() {
   std::unique_ptr<v8::Task> task(
       new TerminateTask(task_manager_, shared_from_this()));
   task_runner_->PostTask(std::move(task));
+  // Also schedule an interrupt in case the worker is running code and never
+  // returning to the event queue. Since we checked the state before, and we are
+  // holding the {worker_mutex_}, it's safe to access the isolate.
+  isolate_->TerminateExecution();
 }
 
 void Worker::ProcessMessage(std::unique_ptr<SerializationData> data) {
@@ -4254,12 +4244,15 @@ void Worker::ExecuteInThread() {
 
   D8Console console(isolate_);
   Shell::Initialize(isolate_, &console, false);
-  {
+  // This is not really a loop, but the loop allows us to break out of this
+  // block easily.
+  for (bool execute = true; execute; execute = false) {
     Isolate::Scope iscope(isolate_);
     {
       HandleScope scope(isolate_);
       PerIsolateData data(isolate_);
       Local<Context> context = Shell::CreateEvaluationContext(isolate_);
+      if (context.IsEmpty()) break;
       context_.Reset(isolate_, context);
       {
         Context::Scope cscope(context);
@@ -4517,6 +4510,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--cpu-profiler-print") == 0) {
       options.cpu_profiler = true;
       options.cpu_profiler_print = true;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--stress-deserialize") == 0) {
+      options.stress_deserialize = true;
       argv[i] = nullptr;
     } else if (strncmp(argv[i], "--web-snapshot-config=", 22) == 0) {
       options.web_snapshot_config = argv[i] + 22;
@@ -5003,7 +4999,8 @@ class Serializer : public ValueSerializer::Delegate {
       Local<ArrayBuffer> array_buffer =
           Local<ArrayBuffer>::New(isolate_, global_array_buffer);
       if (!array_buffer->IsDetachable()) {
-        isolate_->ThrowError("ArrayBuffer could not be transferred");
+        isolate_->ThrowError(
+            "ArrayBuffer is not detachable and could not be transferred");
         return Nothing<bool>();
       }
 
@@ -5357,6 +5354,9 @@ int Shell::Main(int argc, char* argv[]) {
 
   if (HasFlagThatRequiresSharedIsolate()) {
     Isolate::CreateParams shared_create_params;
+    shared_create_params.constraints.ConfigureDefaults(
+        base::SysInfo::AmountOfPhysicalMemory(),
+        base::SysInfo::AmountOfVirtualMemory());
     shared_create_params.array_buffer_allocator = Shell::array_buffer_allocator;
     shared_isolate =
         reinterpret_cast<Isolate*>(i::Isolate::NewShared(shared_create_params));

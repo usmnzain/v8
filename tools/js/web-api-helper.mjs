@@ -34,11 +34,16 @@ export class V8CustomElement extends HTMLElement {
   }
 
   forceUpdate() {
+    this._updateTimeoutId = undefined;
     this._update();
   }
 
   _update() {
     throw Error('Subclass responsibility');
+  }
+
+  get isFocused() {
+    return document.activeElement === this;
   }
 }
 
