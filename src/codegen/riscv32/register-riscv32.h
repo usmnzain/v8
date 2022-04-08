@@ -76,7 +76,6 @@ constexpr int ArgumentPaddingSlots(int argument_count) {
 // Note that the bit values must match those used in actual instruction
 // encoding.
 const int kNumRegs = 32;
-
 const int kUndefIndex = -1;
 // Map with indexes on stack that corresponds to codes of saved registers.
 const int kSafepointRegisterStackIndexMap[kNumRegs] = {kUndefIndex,  // zero_reg

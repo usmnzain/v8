@@ -670,6 +670,5 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructField) {
   USE(result);
   return ReadOnlyRoots(isolate).exception();
 }
-
 }  // namespace internal
 }  // namespace v8

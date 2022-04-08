@@ -3480,7 +3480,6 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
 
   RegList restored_regs = kJSCallerSaved | kCalleeSaved;
   RegList saved_regs = restored_regs | sp | ra;
-
   const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kNumRegisters;
 
   // Save all double FPU registers before messing with them.

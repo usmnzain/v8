@@ -3928,6 +3928,7 @@ UseScratchRegisterScope::~UseScratchRegisterScope() {
 
 Register UseScratchRegisterScope::Acquire() {
   DCHECK_NOT_NULL(available_);
+
   DCHECK(!available_->is_empty());
   int index =
       static_cast<int>(base::bits::CountTrailingZeros32(available_->bits()));
