@@ -160,7 +160,7 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
     __ GetObjectType(map, type, type);
     __ Assert(eq, AbortReason::kUnexpectedValue, type, Operand(MAP_TYPE));
   }
-  __ Ld(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  __ Lw(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
   __ Branch(target, AsMasmCondition(cc), type, Operand(instance_type));
 }
 void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
@@ -168,7 +168,7 @@ void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
                                       Label::Distance) {
   ScratchRegisterScope temps(this);
   Register temp = temps.AcquireScratch();
-  __ Ld(temp, operand);
+  __ Lw(temp, operand);
   __ Branch(target, AsMasmCondition(cc), value, Operand(temp));
 }
 void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Smi smi,
@@ -192,7 +192,7 @@ void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
   // todo: compress pointer
   ScratchRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  __ Ld(scratch, operand);
+  __ Lw(scratch, operand);
   __ Branch(target, AsMasmCondition(cc), value, Operand(scratch));
 }
 void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
@@ -201,7 +201,7 @@ void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
   // todo: compress pointer
   ScratchRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  __ Ld(scratch, operand);
+  __ Lw(scratch, operand);
   __ Branch(target, AsMasmCondition(cc), scratch, Operand(value));
 }
 void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
@@ -216,7 +216,7 @@ void BaselineAssembler::Move(Register output, TaggedIndex value) {
   __ li(output, Operand(value.ptr()));
 }
 void BaselineAssembler::Move(MemOperand output, Register source) {
-  __ Sd(source, output);
+  __ Sw(source, output);
 }
 void BaselineAssembler::Move(Register output, ExternalReference reference) {
   __ li(output, Operand(reference));
