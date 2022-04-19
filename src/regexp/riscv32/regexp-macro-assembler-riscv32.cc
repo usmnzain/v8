@@ -146,9 +146,9 @@ void RegExpMacroAssemblerRISCV::AdvanceRegister(int reg, int by) {
   DCHECK_LE(0, reg);
   DCHECK_GT(num_registers_, reg);
   if (by != 0) {
-    __ Ld(a0, register_location(reg));
+    __ Lw(a0, register_location(reg));
     __ Add(a0, a0, Operand(by));
-    __ Sd(a0, register_location(reg));
+    __ Sw(a0, register_location(reg));
   }
 }
 
@@ -156,9 +156,9 @@ void RegExpMacroAssemblerRISCV::Backtrack() {
   CheckPreemption();
   if (has_backtrack_limit()) {
     Label next;
-    __ Ld(a0, MemOperand(frame_pointer(), kBacktrackCount));
+    __ Lw(a0, MemOperand(frame_pointer(), kBacktrackCount));
     __ Add(a0, a0, Operand(1));
-    __ Sd(a0, MemOperand(frame_pointer(), kBacktrackCount));
+    __ Sw(a0, MemOperand(frame_pointer(), kBacktrackCount));
     __ BranchShort(&next, ne, a0, Operand(backtrack_limit()));
 
     // Backtrack limit exceeded.
@@ -190,7 +190,7 @@ void RegExpMacroAssemblerRISCV::CheckCharacterGT(base::uc16 limit,
 
 void RegExpMacroAssemblerRISCV::CheckAtStart(int cp_offset,
                                              Label* on_at_start) {
-  __ Ld(a1, MemOperand(frame_pointer(), kStringStartMinusOne));
+  __ Lw(a1, MemOperand(frame_pointer(), kStringStartMinusOne));
   __ Add(a0, current_input_offset(),
          Operand(-char_size() + cp_offset * char_size()));
   BranchOrBacktrack(on_at_start, eq, a0, Operand(a1));
@@ -198,7 +198,7 @@ void RegExpMacroAssemblerRISCV::CheckAtStart(int cp_offset,
 
 void RegExpMacroAssemblerRISCV::CheckNotAtStart(int cp_offset,
                                                 Label* on_not_at_start) {
-  __ Ld(a1, MemOperand(frame_pointer(), kStringStartMinusOne));
+  __ Lw(a1, MemOperand(frame_pointer(), kStringStartMinusOne));
   __ Add(a0, current_input_offset(),
          Operand(-char_size() + cp_offset * char_size()));
   BranchOrBacktrack(on_not_at_start, ne, a0, Operand(a1));
@@ -270,8 +270,8 @@ bool RegExpMacroAssemblerRISCV::CheckCharacterNotInRangeArray(
 void RegExpMacroAssemblerRISCV::CheckNotBackReferenceIgnoreCase(
     int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
   Label fallthrough;
-  __ Ld(a0, register_location(start_reg));      // Index of start of capture.
-  __ Ld(a1, register_location(start_reg + 1));  // Index of end of capture.
+  __ Lw(a0, register_location(start_reg));      // Index of start of capture.
+  __ Lw(a1, register_location(start_reg + 1));  // Index of end of capture.
   __ Sub(a1, a1, a0);                           // Length of capture.
 
   // At this point, the capture registers are either both set or both cleared.
@@ -280,7 +280,7 @@ void RegExpMacroAssemblerRISCV::CheckNotBackReferenceIgnoreCase(
   __ BranchShort(&fallthrough, eq, a1, Operand(zero_reg));
 
   if (read_backward) {
-    __ Ld(t1, MemOperand(frame_pointer(), kStringStartMinusOne));
+    __ Lw(t1, MemOperand(frame_pointer(), kStringStartMinusOne));
     __ Add(t1, t1, a1);
     BranchOrBacktrack(on_no_match, le, current_input_offset(), Operand(t1));
   } else {
@@ -340,8 +340,8 @@ void RegExpMacroAssemblerRISCV::CheckNotBackReferenceIgnoreCase(
     // Compute new value of character position after the matched part.
     __ Sub(current_input_offset(), a2, end_of_input_address());
     if (read_backward) {
-      __ Ld(t1, register_location(start_reg));  // Index of start of capture.
-      __ Ld(a2, register_location(start_reg + 1));  // Index of end of capture.
+      __ Lw(t1, register_location(start_reg));  // Index of start of capture.
+      __ Lw(a2, register_location(start_reg + 1));  // Index of end of capture.
       __ Add(current_input_offset(), current_input_offset(), Operand(t1));
       __ Sub(current_input_offset(), current_input_offset(), Operand(a2));
     }
@@ -388,7 +388,7 @@ void RegExpMacroAssemblerRISCV::CheckNotBackReferenceIgnoreCase(
     // Restore regexp engine registers.
     PopCallerSavedRegisters();
     __ li(code_pointer(), Operand(masm_->CodeObject()), CONSTANT_SIZE);
-    __ Ld(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
+    __ Lw(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
 
     // Check if function returned non-zero for success or zero for failure.
     BranchOrBacktrack(on_no_match, eq, a0, Operand(zero_reg));
@@ -409,8 +409,8 @@ void RegExpMacroAssemblerRISCV::CheckNotBackReference(int start_reg,
   Label fallthrough;
 
   // Find length of back-referenced capture.
-  __ Ld(a0, register_location(start_reg));
-  __ Ld(a1, register_location(start_reg + 1));
+  __ Lw(a0, register_location(start_reg));
+  __ Lw(a1, register_location(start_reg + 1));
   __ Sub(a1, a1, a0);  // Length to check.
 
   // At this point, the capture registers are either both set or both cleared.
@@ -419,7 +419,7 @@ void RegExpMacroAssemblerRISCV::CheckNotBackReference(int start_reg,
   __ BranchShort(&fallthrough, eq, a1, Operand(zero_reg));
 
   if (read_backward) {
-    __ Ld(t1, MemOperand(frame_pointer(), kStringStartMinusOne));
+    __ Lw(t1, MemOperand(frame_pointer(), kStringStartMinusOne));
     __ Add(t1, t1, a1);
     BranchOrBacktrack(on_no_match, le, current_input_offset(), Operand(t1));
   } else {
@@ -456,8 +456,8 @@ void RegExpMacroAssemblerRISCV::CheckNotBackReference(int start_reg,
   // Move current character position to position after match.
   __ Sub(current_input_offset(), a2, end_of_input_address());
   if (read_backward) {
-    __ Ld(t1, register_location(start_reg));      // Index of start of capture.
-    __ Ld(a2, register_location(start_reg + 1));  // Index of end of capture.
+    __ Lw(t1, register_location(start_reg));      // Index of start of capture.
+    __ Lw(a2, register_location(start_reg + 1));  // Index of end of capture.
     __ Add(current_input_offset(), current_input_offset(), Operand(t1));
     __ Sub(current_input_offset(), current_input_offset(), Operand(a2));
   }
@@ -636,7 +636,7 @@ void RegExpMacroAssemblerRISCV::LoadRegExpStackPointerFromMemory(Register dst) {
   ExternalReference ref =
       ExternalReference::address_of_regexp_stack_stack_pointer(isolate());
   __ li(dst, Operand(ref));
-  __ Ld(dst, MemOperand(dst));
+  __ Lw(dst, MemOperand(dst));
 }
 
 void RegExpMacroAssemblerRISCV::StoreRegExpStackPointerToMemory(
@@ -644,7 +644,7 @@ void RegExpMacroAssemblerRISCV::StoreRegExpStackPointerToMemory(
   ExternalReference ref =
       ExternalReference::address_of_regexp_stack_stack_pointer(isolate());
   __ li(scratch, Operand(ref));
-  __ Sd(src, MemOperand(scratch));
+  __ Sw(src, MemOperand(scratch));
 }
 
 void RegExpMacroAssemblerRISCV::PushRegExpBasePointer(Register scratch1,
@@ -653,18 +653,18 @@ void RegExpMacroAssemblerRISCV::PushRegExpBasePointer(Register scratch1,
   ExternalReference ref =
       ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
   __ li(scratch2, Operand(ref));
-  __ Ld(scratch2, MemOperand(scratch2));
+  __ Lw(scratch2, MemOperand(scratch2));
   __ Sub(scratch2, scratch1, scratch2);
-  __ Sd(scratch2, MemOperand(frame_pointer(), kRegExpStackBasePointer));
+  __ Sw(scratch2, MemOperand(frame_pointer(), kRegExpStackBasePointer));
 }
 
 void RegExpMacroAssemblerRISCV::PopRegExpBasePointer(Register scratch1,
                                                      Register scratch2) {
   ExternalReference ref =
       ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
-  __ Ld(scratch1, MemOperand(frame_pointer(), kRegExpStackBasePointer));
+  __ Lw(scratch1, MemOperand(frame_pointer(), kRegExpStackBasePointer));
   __ li(scratch2, ref);
-  __ Ld(scratch2, MemOperand(scratch2));
+  __ Lw(scratch2, MemOperand(scratch2));
   __ Add(scratch1, scratch1, scratch2);
   StoreRegExpStackPointerToMemory(scratch1, scratch2);
 }
@@ -744,7 +744,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
     ExternalReference stack_limit =
         ExternalReference::address_of_jslimit(masm_->isolate());
     __ li(a0, Operand(stack_limit));
-    __ Ld(a0, MemOperand(a0));
+    __ Lw(a0, MemOperand(a0));
     __ Sub(a0, sp, a0);
     // Handle it if the stack pointer is already below the stack limit.
     __ BranchShort(&stack_limit_hit, le, a0, Operand(zero_reg));
@@ -766,20 +766,20 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
     // Allocate space on stack for registers.
     __ Sub(sp, sp, Operand(num_registers_ * kSystemPointerSize));
     // Load string end.
-    __ Ld(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
+    __ Lw(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
     // Load input start.
-    __ Ld(a0, MemOperand(frame_pointer(), kInputStart));
+    __ Lw(a0, MemOperand(frame_pointer(), kInputStart));
     // Find negative length (offset of start relative to end).
     __ Sub(current_input_offset(), a0, end_of_input_address());
     // Set a0 to address of char before start of the input string
     // (effectively string position -1).
-    __ Ld(a1, MemOperand(frame_pointer(), kStartIndex));
+    __ Lw(a1, MemOperand(frame_pointer(), kStartIndex));
     __ Sub(a0, current_input_offset(), Operand(char_size()));
     __ slli(t1, a1, (mode_ == UC16) ? 1 : 0);
     __ Sub(a0, a0, t1);
     // Store this value in a local variable, for use when clearing
     // position registers.
-    __ Sd(a0, MemOperand(frame_pointer(), kStringStartMinusOne));
+    __ Sw(a0, MemOperand(frame_pointer(), kStringStartMinusOne));
 
     // Initialize code pointer register
     __ li(code_pointer(), Operand(masm_->CodeObject()), CONSTANT_SIZE);
@@ -805,13 +805,13 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
         __ li(a2, Operand(num_saved_registers_));
         Label init_loop;
         __ bind(&init_loop);
-        __ Sd(a0, MemOperand(a1));
+        __ Sw(a0, MemOperand(a1));
         __ Add(a1, a1, Operand(-kSystemPointerSize));
         __ Sub(a2, a2, Operand(1));
         __ Branch(&init_loop, ne, a2, Operand(zero_reg));
       } else {
         for (int i = 0; i < num_saved_registers_; i++) {
-          __ Sd(a0, register_location(i));
+          __ Sw(a0, register_location(i));
         }
       }
     }
@@ -827,9 +827,9 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
       __ bind(&success_label_);
       if (num_saved_registers_ > 0) {
         // Copy captures to output.
-        __ Ld(a1, MemOperand(frame_pointer(), kInputStart));
-        __ Ld(a0, MemOperand(frame_pointer(), kRegisterOutput));
-        __ Ld(a2, MemOperand(frame_pointer(), kStartIndex));
+        __ Lw(a1, MemOperand(frame_pointer(), kInputStart));
+        __ Lw(a0, MemOperand(frame_pointer(), kRegisterOutput));
+        __ Lw(a2, MemOperand(frame_pointer(), kStartIndex));
         __ Sub(a1, end_of_input_address(), a1);
         // a1 is length of input in bytes.
         if (mode_ == UC16) {
@@ -844,8 +844,8 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
         // unroll the loop once to add an operation between a load of a
         // register and the following use of that register.
         for (int i = 0; i < num_saved_registers_; i += 2) {
-          __ Ld(a2, register_location(i));
-          __ Ld(a3, register_location(i + 1));
+          __ Lw(a2, register_location(i));
+          __ Lw(a3, register_location(i + 1));
           if (i == 0 && global_with_zero_length_check()) {
             // Keep capture start in a4 for the zero-length check later.
             __ mv(s3, a2);
@@ -869,25 +869,25 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
 
       if (global()) {
         // Restart matching if the regular expression is flagged as global.
-        __ Ld(a0, MemOperand(frame_pointer(), kSuccessfulCaptures));
-        __ Ld(a1, MemOperand(frame_pointer(), kNumOutputRegisters));
-        __ Ld(a2, MemOperand(frame_pointer(), kRegisterOutput));
+        __ Lw(a0, MemOperand(frame_pointer(), kSuccessfulCaptures));
+        __ Lw(a1, MemOperand(frame_pointer(), kNumOutputRegisters));
+        __ Lw(a2, MemOperand(frame_pointer(), kRegisterOutput));
         // Increment success counter.
         __ Add(a0, a0, 1);
-        __ Sd(a0, MemOperand(frame_pointer(), kSuccessfulCaptures));
+        __ Sw(a0, MemOperand(frame_pointer(), kSuccessfulCaptures));
         // Capture results have been stored, so the number of remaining global
         // output registers is reduced by the number of stored captures.
         __ Sub(a1, a1, num_saved_registers_);
         // Check whether we have enough room for another set of capture results.
         __ Branch(&return_a0, lt, a1, Operand(num_saved_registers_));
 
-        __ Sd(a1, MemOperand(frame_pointer(), kNumOutputRegisters));
+        __ Sw(a1, MemOperand(frame_pointer(), kNumOutputRegisters));
         // Advance the location for output.
         __ Add(a2, a2, num_saved_registers_ * kIntSize);
-        __ Sd(a2, MemOperand(frame_pointer(), kRegisterOutput));
+        __ Sw(a2, MemOperand(frame_pointer(), kRegisterOutput));
 
         // Prepare a0 to initialize registers with its value in the next run.
-        __ Ld(a0, MemOperand(frame_pointer(), kStringStartMinusOne));
+        __ Lw(a0, MemOperand(frame_pointer(), kStringStartMinusOne));
 
         if (global_with_zero_length_check()) {
           // Special case for zero-length matches.
@@ -914,7 +914,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
     // Exit and return a0.
     __ bind(&exit_label_);
     if (global()) {
-      __ Ld(a0, MemOperand(frame_pointer(), kSuccessfulCaptures));
+      __ Lw(a0, MemOperand(frame_pointer(), kSuccessfulCaptures));
     }
 
     __ bind(&return_a0);
@@ -950,7 +950,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
       __ Branch(&return_a0, ne, a0, Operand(zero_reg));
       LoadRegExpStackPointerFromMemory(backtrack_stackpointer());
       // String might have moved: Reload end of string from frame.
-      __ Ld(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
+      __ Lw(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
       __ li(code_pointer(), Operand(masm_->CodeObject()), CONSTANT_SIZE);
       SafeReturn();
     }
@@ -973,7 +973,7 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
       __ mv(backtrack_stackpointer(), a0);
       // Restore saved registers and continue.
       __ li(code_pointer(), Operand(masm_->CodeObject()), CONSTANT_SIZE);
-      __ Ld(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
+      __ Lw(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
       SafeReturn();
     }
 
@@ -1014,18 +1014,18 @@ void RegExpMacroAssemblerRISCV::GoTo(Label* to) {
 
 void RegExpMacroAssemblerRISCV::IfRegisterGE(int reg, int comparand,
                                              Label* if_ge) {
-  __ Ld(a0, register_location(reg));
+  __ Lw(a0, register_location(reg));
   BranchOrBacktrack(if_ge, ge, a0, Operand(comparand));
 }
 
 void RegExpMacroAssemblerRISCV::IfRegisterLT(int reg, int comparand,
                                              Label* if_lt) {
-  __ Ld(a0, register_location(reg));
+  __ Lw(a0, register_location(reg));
   BranchOrBacktrack(if_lt, lt, a0, Operand(comparand));
 }
 
 void RegExpMacroAssemblerRISCV::IfRegisterEqPos(int reg, Label* if_eq) {
-  __ Ld(a0, register_location(reg));
+  __ Lw(a0, register_location(reg));
   BranchOrBacktrack(if_eq, eq, a0, Operand(current_input_offset()));
 }
 
@@ -1040,7 +1040,7 @@ void RegExpMacroAssemblerRISCV::PopCurrentPosition() {
 
 void RegExpMacroAssemblerRISCV::PopRegister(int register_index) {
   Pop(a0);
-  __ Sd(a0, register_location(register_index));
+  __ Sw(a0, register_location(register_index));
 }
 
 void RegExpMacroAssemblerRISCV::PushBacktrack(Label* label) {
@@ -1073,20 +1073,20 @@ void RegExpMacroAssemblerRISCV::PushCurrentPosition() {
 
 void RegExpMacroAssemblerRISCV::PushRegister(int register_index,
                                              StackCheckFlag check_stack_limit) {
-  __ Ld(a0, register_location(register_index));
+  __ Lw(a0, register_location(register_index));
   Push(a0);
   if (check_stack_limit) CheckStackLimit();
 }
 
 void RegExpMacroAssemblerRISCV::ReadCurrentPositionFromRegister(int reg) {
-  __ Ld(current_input_offset(), register_location(reg));
+  __ Lw(current_input_offset(), register_location(reg));
 }
 
 void RegExpMacroAssemblerRISCV::WriteStackPointerToRegister(int reg) {
   ExternalReference ref =
       ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
   __ li(a0, ref);
-  __ Ld(a0, MemOperand(a0));
+  __ Lw(a0, MemOperand(a0));
   __ Sub(a0, backtrack_stackpointer(), a0);
   __ Sw(a0, register_location(reg));
 }
@@ -1095,7 +1095,7 @@ void RegExpMacroAssemblerRISCV::ReadStackPointerFromRegister(int reg) {
   ExternalReference ref =
       ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
   __ li(a1, ref);
-  __ Ld(a1, MemOperand(a1));
+  __ Lw(a1, MemOperand(a1));
   __ Lw(backtrack_stackpointer(), register_location(reg));
   __ Add(backtrack_stackpointer(), backtrack_stackpointer(), a1);
 }
@@ -1115,7 +1115,7 @@ void RegExpMacroAssemblerRISCV::SetCurrentPositionFromEnd(int by) {
 void RegExpMacroAssemblerRISCV::SetRegister(int register_index, int to) {
   DCHECK(register_index >= num_saved_registers_);  // Reserved for positions!
   __ li(a0, Operand(to));
-  __ Sd(a0, register_location(register_index));
+  __ Sw(a0, register_location(register_index));
 }
 
 bool RegExpMacroAssemblerRISCV::Succeed() {
@@ -1126,18 +1126,18 @@ bool RegExpMacroAssemblerRISCV::Succeed() {
 void RegExpMacroAssemblerRISCV::WriteCurrentPositionToRegister(int reg,
                                                                int cp_offset) {
   if (cp_offset == 0) {
-    __ Sd(current_input_offset(), register_location(reg));
+    __ Sw(current_input_offset(), register_location(reg));
   } else {
     __ Add(a0, current_input_offset(), Operand(cp_offset * char_size()));
-    __ Sd(a0, register_location(reg));
+    __ Sw(a0, register_location(reg));
   }
 }
 
 void RegExpMacroAssemblerRISCV::ClearRegisters(int reg_from, int reg_to) {
   DCHECK(reg_from <= reg_to);
-  __ Ld(a0, MemOperand(frame_pointer(), kStringStartMinusOne));
+  __ Lw(a0, MemOperand(frame_pointer(), kStringStartMinusOne));
   for (int reg = reg_from; reg <= reg_to; reg++) {
-    __ Sd(a0, register_location(reg));
+    __ Sw(a0, register_location(reg));
   }
 }
 #ifdef RISCV_HAS_NO_UNALIGNED
@@ -1156,7 +1156,7 @@ void RegExpMacroAssemblerRISCV::CallCheckStackGuardState(Register scratch) {
   __ Sub(sp, sp, Operand(kSystemPointerSize));
   DCHECK(base::bits::IsPowerOfTwo(stack_alignment));
   __ And(sp, sp, Operand(-stack_alignment));
-  __ Sd(scratch, MemOperand(sp));
+  __ Sw(scratch, MemOperand(sp));
 
   __ mv(a2, frame_pointer());
   // Code of self.
@@ -1200,7 +1200,7 @@ void RegExpMacroAssemblerRISCV::CallCheckStackGuardState(Register scratch) {
   // [sp + 2] - C argument slot.
   // [sp + 1] - C argument slot.
   // [sp + 0] - C argument slot.
-  __ Ld(sp, MemOperand(sp, stack_alignment + kCArgsSlotsSize));
+  __ Lw(sp, MemOperand(sp, stack_alignment + kCArgsSlotsSize));
 
   __ li(code_pointer(), Operand(masm_->CodeObject()));
 }
@@ -1246,7 +1246,7 @@ void RegExpMacroAssemblerRISCV::CheckPosition(int cp_offset,
     BranchOrBacktrack(on_outside_input, ge, current_input_offset(),
                       Operand(-cp_offset * char_size()));
   } else {
-    __ Ld(a1, MemOperand(frame_pointer(), kStringStartMinusOne));
+    __ Lw(a1, MemOperand(frame_pointer(), kStringStartMinusOne));
     __ Add(a0, current_input_offset(), Operand(cp_offset * char_size()));
     BranchOrBacktrack(on_outside_input, le, a0, Operand(a1));
   }
@@ -1306,7 +1306,7 @@ void RegExpMacroAssemblerRISCV::CheckPreemption() {
   ExternalReference stack_limit =
       ExternalReference::address_of_jslimit(masm_->isolate());
   __ li(a0, Operand(stack_limit));
-  __ Ld(a0, MemOperand(a0));
+  __ Lw(a0, MemOperand(a0));
   SafeCall(&check_preempt_label_, Uless_equal, sp, Operand(a0));
 }
 
@@ -1316,7 +1316,7 @@ void RegExpMacroAssemblerRISCV::CheckStackLimit() {
           masm_->isolate());
 
   __ li(a0, Operand(stack_limit));
-  __ Ld(a0, MemOperand(a0));
+  __ Lw(a0, MemOperand(a0));
   SafeCall(&stack_overflow_label_, Uless_equal, backtrack_stackpointer(),
            Operand(a0));
 }

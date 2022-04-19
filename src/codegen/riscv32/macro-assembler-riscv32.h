@@ -199,7 +199,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     li(rd, Operand(j), mode);
   }
 
-  inline void Move(Register output, MemOperand operand) { Ld(output, operand); }
+  inline void Move(Register output, MemOperand operand) { Lw(output, operand); }
   void li(Register dst, Handle<HeapObject> value,
           RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
   void li(Register dst, ExternalReference value, LiFlags mode = OPTIMIZE_SIZE);
@@ -283,12 +283,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void DropAndRet(int drop, Condition cond, Register reg, const Operand& op);
 
-  void Ld(Register rd, const MemOperand& rs);
-  void Sd(Register rd, const MemOperand& rs);
-
   void push(Register src) {
     Add(sp, sp, Operand(-kSystemPointerSize));
-    Sd(src, MemOperand(sp, 0));
+    Sw(src, MemOperand(sp, 0));
   }
   void Push(Register src) { push(src); }
   void Push(Handle<HeapObject> handle);
@@ -297,43 +294,43 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Push two registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
     Sub(sp, sp, Operand(2 * kSystemPointerSize));
-    Sd(src1, MemOperand(sp, 1 * kSystemPointerSize));
-    Sd(src2, MemOperand(sp, 0 * kSystemPointerSize));
+    Sw(src1, MemOperand(sp, 1 * kSystemPointerSize));
+    Sw(src2, MemOperand(sp, 0 * kSystemPointerSize));
   }
 
   // Push three registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3) {
     Sub(sp, sp, Operand(3 * kSystemPointerSize));
-    Sd(src1, MemOperand(sp, 2 * kSystemPointerSize));
-    Sd(src2, MemOperand(sp, 1 * kSystemPointerSize));
-    Sd(src3, MemOperand(sp, 0 * kSystemPointerSize));
+    Sw(src1, MemOperand(sp, 2 * kSystemPointerSize));
+    Sw(src2, MemOperand(sp, 1 * kSystemPointerSize));
+    Sw(src3, MemOperand(sp, 0 * kSystemPointerSize));
   }
 
   // Push four registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3, Register src4) {
     Sub(sp, sp, Operand(4 * kSystemPointerSize));
-    Sd(src1, MemOperand(sp, 3 * kSystemPointerSize));
-    Sd(src2, MemOperand(sp, 2 * kSystemPointerSize));
-    Sd(src3, MemOperand(sp, 1 * kSystemPointerSize));
-    Sd(src4, MemOperand(sp, 0 * kSystemPointerSize));
+    Sw(src1, MemOperand(sp, 3 * kSystemPointerSize));
+    Sw(src2, MemOperand(sp, 2 * kSystemPointerSize));
+    Sw(src3, MemOperand(sp, 1 * kSystemPointerSize));
+    Sw(src4, MemOperand(sp, 0 * kSystemPointerSize));
   }
 
   // Push five registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3, Register src4,
             Register src5) {
     Sub(sp, sp, Operand(5 * kSystemPointerSize));
-    Sd(src1, MemOperand(sp, 4 * kSystemPointerSize));
-    Sd(src2, MemOperand(sp, 3 * kSystemPointerSize));
-    Sd(src3, MemOperand(sp, 2 * kSystemPointerSize));
-    Sd(src4, MemOperand(sp, 1 * kSystemPointerSize));
-    Sd(src5, MemOperand(sp, 0 * kSystemPointerSize));
+    Sw(src1, MemOperand(sp, 4 * kSystemPointerSize));
+    Sw(src2, MemOperand(sp, 3 * kSystemPointerSize));
+    Sw(src3, MemOperand(sp, 2 * kSystemPointerSize));
+    Sw(src4, MemOperand(sp, 1 * kSystemPointerSize));
+    Sw(src5, MemOperand(sp, 0 * kSystemPointerSize));
   }
 
   void Push(Register src, Condition cond, Register tst1, Register tst2) {
     // Since we don't have conditional execution we use a Branch.
     Branch(3, cond, tst1, Operand(tst2));
     Sub(sp, sp, Operand(kSystemPointerSize));
-    Sd(src, MemOperand(sp, 0));
+    Sw(src, MemOperand(sp, 0));
   }
 
   enum PushArrayOrder { kNormal, kReverse };
@@ -379,7 +376,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                      Register exclusion3 = no_reg);
 
   void pop(Register dst) {
-    Ld(dst, MemOperand(sp, 0));
+    Lw(dst, MemOperand(sp, 0));
     Add(sp, sp, Operand(kSystemPointerSize));
   }
   void Pop(Register dst) { pop(dst); }
@@ -387,16 +384,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Pop two registers. Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2) {
     DCHECK(src1 != src2);
-    Ld(src2, MemOperand(sp, 0 * kSystemPointerSize));
-    Ld(src1, MemOperand(sp, 1 * kSystemPointerSize));
+    Lw(src2, MemOperand(sp, 0 * kSystemPointerSize));
+    Lw(src1, MemOperand(sp, 1 * kSystemPointerSize));
     Add(sp, sp, 2 * kSystemPointerSize);
   }
 
   // Pop three registers. Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2, Register src3) {
-    Ld(src3, MemOperand(sp, 0 * kSystemPointerSize));
-    Ld(src2, MemOperand(sp, 1 * kSystemPointerSize));
-    Ld(src1, MemOperand(sp, 2 * kSystemPointerSize));
+    Lw(src3, MemOperand(sp, 0 * kSystemPointerSize));
+    Lw(src2, MemOperand(sp, 1 * kSystemPointerSize));
+    Lw(src1, MemOperand(sp, 2 * kSystemPointerSize));
     Add(sp, sp, 3 * kSystemPointerSize);
   }
 
@@ -1022,11 +1019,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // TODO(victorgomes): Remove this function once we stick with the reversed
   // arguments order.
   void LoadReceiver(Register dest, Register argc) {
-    Ld(dest, MemOperand(sp, 0));
+    Lw(dest, MemOperand(sp, 0));
   }
 
   void StoreReceiver(Register rec, Register argc, Register scratch) {
-    Sd(rec, MemOperand(sp, 0));
+    Sw(rec, MemOperand(sp, 0));
   }
 
   bool IsNear(Label* L, Condition cond, int rs_reg);
@@ -1337,7 +1334,7 @@ void TurboAssembler::GenerateSwitchTable(Register index, size_t case_count,
        kSystemPointerSizeLog2);  // scratch2 = offset of indexth entry
   add(scratch2, scratch2,
       scratch);  // scratch2 = (saved PC) + (offset of indexth entry)
-  ld(scratch2, scratch2,
+  lw(scratch2, scratch2,
      6 * kInstrSize);  // Add the size of these 6 instructions to the
                        // offset, then load
   jr(scratch2);        // Jump to the address loaded from the table

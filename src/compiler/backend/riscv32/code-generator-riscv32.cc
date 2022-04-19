@@ -551,8 +551,8 @@ void CodeGenerator::AssembleDeconstructFrame() {
 
 void CodeGenerator::AssemblePrepareTailCall() {
   if (frame_access_state()->has_frame()) {
-    __ Ld(ra, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-    __ Ld(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+    __ Lw(ra, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+    __ Lw(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   }
   frame_access_state()->SetFrameAccessToSP();
 }
@@ -764,7 +764,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (isWasmCapiFunction) {
         // Put the return address in a stack slot.
         __ LoadAddress(kScratchReg, &after_call, RelocInfo::EXTERNAL_REFERENCE);
-        __ Sd(kScratchReg,
+        __ Sw(kScratchReg,
               MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
       }
       if (instr->InputAt(0)->IsImmediate()) {
@@ -848,7 +848,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchParentFramePointer:
       if (frame_access_state()->has_frame()) {
-        __ Ld(i.OutputRegister(), MemOperand(fp, 0));
+        __ Lw(i.OutputRegister(), MemOperand(fp, 0));
       } else {
         __ Move(i.OutputRegister(), fp);
       }
@@ -1605,7 +1605,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Ulwu(i.OutputRegister(), i.MemoryOperand());
       break;
     case kRiscvLd:
-      __ Ld(i.OutputRegister(), i.MemoryOperand());
+      __ Lw(i.OutputRegister(), i.MemoryOperand());
       break;
     case kRiscvUld:
       __ Uld(i.OutputRegister(), i.MemoryOperand());
@@ -1617,7 +1617,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Usw(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
     case kRiscvSd:
-      __ Sd(i.InputOrZeroRegister(2), i.MemoryOperand());
+      __ Sw(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
     case kRiscvUsd:
       __ Usd(i.InputOrZeroRegister(2), i.MemoryOperand());
@@ -1701,7 +1701,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               MemOperand(fp, offset + kLessSignificantWordInDoublewordOffset));
         }
       } else {
-        __ Ld(i.OutputRegister(0), MemOperand(fp, offset));
+        __ Lw(i.OutputRegister(0), MemOperand(fp, offset));
       }
       break;
     }
@@ -1726,7 +1726,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                          MemOperand(sp, i.InputInt32(1)));
         }
       } else {
-        __ Sd(i.InputOrZeroRegister(0), MemOperand(sp, i.InputInt32(1)));
+        __ Sw(i.InputOrZeroRegister(0), MemOperand(sp, i.InputInt32(1)));
       }
       break;
     }
@@ -1756,7 +1756,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lw);
       break;
     case kRiscvWord64AtomicLoadUint64:
-      ASSEMBLE_ATOMIC_LOAD_INTEGER(Ld);
+      ASSEMBLE_ATOMIC_LOAD_INTEGER(Lw);
       break;
     case kAtomicStoreWord8:
       ASSEMBLE_ATOMIC_STORE_INTEGER(Sb);
@@ -1768,7 +1768,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_STORE_INTEGER(Sw);
       break;
     case kRiscvWord64AtomicStoreWord64:
-      ASSEMBLE_ATOMIC_STORE_INTEGER(Sd);
+      ASSEMBLE_ATOMIC_STORE_INTEGER(Sw);
       break;
     case kAtomicExchangeInt8:
       DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);
@@ -1968,7 +1968,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvS128Load64Zero: {
       Simd128Register dst = i.OutputSimd128Register();
       __ VU.set(kScratchReg, E64, m1);
-      __ Ld(kScratchReg, i.MemoryOperand());
+      __ Lw(kScratchReg, i.MemoryOperand());
       __ vmv_sx(dst, kScratchReg);
       break;
     }
@@ -1988,7 +1988,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvS128Load64ExtendS: {
       __ VU.set(kScratchReg, E64, m1);
-      __ Ld(kScratchReg, i.MemoryOperand());
+      __ Lw(kScratchReg, i.MemoryOperand());
       __ vmv_vx(kSimd128ScratchReg, kScratchReg);
       __ VU.set(kScratchReg, i.InputInt8(2), m1);
       __ vsext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
@@ -1996,7 +1996,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kRiscvS128Load64ExtendU: {
       __ VU.set(kScratchReg, E64, m1);
-      __ Ld(kScratchReg, i.MemoryOperand());
+      __ Lw(kScratchReg, i.MemoryOperand());
       __ vmv_vx(kSimd128ScratchReg, kScratchReg);
       __ VU.set(kScratchReg, i.InputInt8(2), m1);
       __ vzext_vf2(i.OutputSimd128Register(), kSimd128ScratchReg);
@@ -2015,7 +2015,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ Lw(kScratchReg, i.MemoryOperand());
           break;
         case E64:
-          __ Ld(kScratchReg, i.MemoryOperand());
+          __ Lw(kScratchReg, i.MemoryOperand());
           break;
         default:
           UNREACHABLE();
@@ -3917,11 +3917,11 @@ void CodeGenerator::AssembleConstructFrame() {
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
       if ((required_slots * kSystemPointerSize) < (FLAG_stack_size * 1024)) {
-        __ Ld(
+        __ Lw(
             kScratchReg,
             FieldMemOperand(kWasmInstanceRegister,
                             WasmInstanceObject::kRealStackLimitAddressOffset));
-        __ Ld(kScratchReg, MemOperand(kScratchReg));
+        __ Lw(kScratchReg, MemOperand(kScratchReg));
         __ Add(kScratchReg, kScratchReg,
                Operand(required_slots * kSystemPointerSize));
         __ BranchShort(&done, uge, sp, Operand(kScratchReg));
@@ -4027,7 +4027,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     }
     if (drop_jsargs) {
       // Get the actual argument count
-      __ Ld(t0, MemOperand(fp, StandardFrameConstants::kArgCOffset));
+      __ Lw(t0, MemOperand(fp, StandardFrameConstants::kArgCOffset));
     }
     AssembleDeconstructFrame();
   }
@@ -4083,17 +4083,17 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     if (destination->IsRegister()) {
       __ Move(g.ToRegister(destination), src);
     } else {
-      __ Sd(src, g.ToMemOperand(destination));
+      __ Sw(src, g.ToMemOperand(destination));
     }
   } else if (source->IsStackSlot()) {
     DCHECK(destination->IsRegister() || destination->IsStackSlot());
     MemOperand src = g.ToMemOperand(source);
     if (destination->IsRegister()) {
-      __ Ld(g.ToRegister(destination), src);
+      __ Lw(g.ToRegister(destination), src);
     } else {
       Register temp = kScratchReg;
-      __ Ld(temp, src);
-      __ Sd(temp, g.ToMemOperand(destination));
+      __ Lw(temp, src);
+      __ Sw(temp, g.ToMemOperand(destination));
     }
   } else if (source->IsConstant()) {
     Constant src = g.ToConstant(source);
@@ -4154,7 +4154,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         case Constant::kRpoNumber:
           UNREACHABLE();  // TODO(titzer): loading RPO numbers
       }
-      if (destination->IsStackSlot()) __ Sd(dst, g.ToMemOperand(destination));
+      if (destination->IsStackSlot()) __ Sw(dst, g.ToMemOperand(destination));
     } else if (src.type() == Constant::kFloat32) {
       if (destination->IsFPStackSlot()) {
         MemOperand dst = g.ToMemOperand(destination);
@@ -4302,8 +4302,8 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
         Register temp = kScratchReg;
         Register src = g.ToRegister(source);
         __ mv(temp, src);
-        __ Ld(src, dst);
-        __ Sd(temp, dst);
+        __ Lw(src, dst);
+        __ Sw(temp, dst);
       } else {
         MemOperand dst = g.ToMemOperand(destination);
         if (source->IsFloatRegister()) {
@@ -4358,10 +4358,10 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
         UseScratchRegisterScope scope(tasm());
         Register temp_0 = kScratchReg;
         Register temp_1 = kScratchReg2;
-        __ Ld(temp_0, src);
-        __ Ld(temp_1, dst);
-        __ Sd(temp_0, dst);
-        __ Sd(temp_1, src);
+        __ Lw(temp_0, src);
+        __ Lw(temp_1, dst);
+        __ Sw(temp_0, dst);
+        __ Sw(temp_1, src);
       }
       return;
     }
