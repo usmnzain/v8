@@ -44,11 +44,8 @@ namespace compiler {
   V(RiscvSar32)                             \
   V(RiscvZeroExtendWord)                    \
   V(RiscvSignExtendWord)                    \
-  V(RiscvClz64)                             \
   V(RiscvCtz32)                             \
-  V(RiscvCtz64)                             \
   V(RiscvPopcnt32)                          \
-  V(RiscvPopcnt64)                          \
   V(RiscvShl64)                             \
   V(RiscvShr64)                             \
   V(RiscvSar64)                             \
@@ -154,7 +151,6 @@ namespace compiler {
   V(RiscvFloat64SilenceNaN)                 \
   V(RiscvPush)                              \
   V(RiscvPeek)                              \
-  V(RiscvByteSwap64)                        \
   V(RiscvByteSwap32)                        \
   V(RiscvStoreToStackSlot)                  \
   V(RiscvStackClaim)                        \

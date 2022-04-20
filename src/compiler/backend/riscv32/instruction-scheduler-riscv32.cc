@@ -27,7 +27,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvBitcastInt32ToFloat32:
     case kRiscvBitcastFloat32ToInt32:
     case kRiscvByteSwap32:
-    case kRiscvByteSwap64:
     case kRiscvCeilWD:
     case kRiscvCeilWS:
     case kRiscvClz32:
@@ -49,8 +48,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvMulHigh64:
     case kRiscvMulHighU32:
     case kRiscvAddOvf:
-    case kRiscvClz64:
-    case kRiscvCtz64:
     case kRiscvDiv64:
     case kRiscvDivU64:
     case kRiscvZeroExtendWord:
@@ -62,7 +59,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvMod64:
     case kRiscvModU64:
     case kRiscvMul64:
-    case kRiscvPopcnt64:
     case kRiscvRor64:
     case kRiscvSar64:
     case kRiscvShl64:
@@ -934,12 +930,6 @@ int Popcnt32Latency() {
          1 + Mul32Latency() + 1;
 }
 
-int Popcnt64Latency() {
-  return 2 + AndLatency() + Sub64Latency() + 1 + AndLatency() + 1 +
-         AndLatency() + Add64Latency() + 1 + Add64Latency() + 1 + AndLatency() +
-         1 + Mul64Latency() + 1;
-}
-
 int CompareFLatency() { return Latency::C_cond_S; }
 
 int CompareF32Latency() { return CompareFLatency(); }
@@ -1258,16 +1248,11 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       }
     }
     case kRiscvClz32:
-    case kRiscvClz64:
       return Clz64Latency();
     case kRiscvCtz32:
       return Ctz32Latency();
-    case kRiscvCtz64:
-      return Ctz64Latency();
     case kRiscvPopcnt32:
       return Popcnt32Latency();
-    case kRiscvPopcnt64:
-      return Popcnt64Latency();
     case kRiscvShl32:
       return 1;
     case kRiscvShr32:
@@ -1510,8 +1495,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       }
       return latency;
     }
-    case kRiscvByteSwap64:
-      return ByteSwapSignedLatency();
     case kRiscvByteSwap32:
       return ByteSwapSignedLatency();
     case kAtomicLoadInt8:
