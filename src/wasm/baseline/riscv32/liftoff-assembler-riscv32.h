@@ -541,9 +541,9 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kI64Load16S:
       TurboAssembler::Lh(dst.gp(), src_op);
       break;
-    case LoadType::kI64Load32U:
-      TurboAssembler::Lwu(dst.gp(), src_op);
-      break;
+    // case LoadType::kI64Load32U:
+    //   TurboAssembler::Lwu(dst.gp(), src_op);
+    //   break;
     case LoadType::kI32Load:
     case LoadType::kI64Load32S:
       TurboAssembler::Lw(dst.gp(), src_op);
@@ -1751,7 +1751,7 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
     vxor_vv(dst_v, dst_v, dst_v);
     if (memtype == MachineType::Int32()) {
       VU.set(kScratchReg, E32, m1);
-      Lwu(scratch, src_op);
+      Lw(scratch, src_op);
       vmv_sx(dst_v, scratch);
     } else {
       DCHECK_EQ(MachineType::Int64(), memtype);
@@ -1804,7 +1804,7 @@ void LiftoffAssembler::LoadLane(LiftoffRegister dst, LiftoffRegister src,
     vmv_sx(v0, kScratchReg);
     vmerge_vx(dst.fp().toV(), scratch, dst.fp().toV());
   } else if (mem_type == MachineType::Int32()) {
-    Lwu(scratch, src_op);
+    Lw(scratch, src_op);
     VU.set(kScratchReg, E32, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);

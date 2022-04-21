@@ -1226,7 +1226,7 @@ void TurboAssembler::Uld(Register rd, const MemOperand& rs) {
 void MacroAssembler::LoadWordPair(Register rd, const MemOperand& rs) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  Lwu(rd, rs);
+  Lw(rd, rs);
   Lw(scratch, MemOperand(rs.rm(), rs.offset() + kSystemPointerSize / 2));
   slli(scratch, scratch, 32);
   Add(rd, rd, scratch);
@@ -1328,12 +1328,12 @@ void TurboAssembler::Lw(Register rd, const MemOperand& rs) {
   AlignedLoadHelper(rd, rs, fn);
 }
 
-void TurboAssembler::Lwu(Register rd, const MemOperand& rs) {
-  auto fn = [this](Register target, const MemOperand& source) {
-    this->lwu(target, source.rm(), source.offset());
-  };
-  AlignedLoadHelper(rd, rs, fn);
-}
+// void TurboAssembler::Lw(Register rd, const MemOperand& rs) {
+//   auto fn = [this](Register target, const MemOperand& source) {
+//     this->lw(target, source.rm(), source.offset());
+//   };
+//   AlignedLoadHelper(rd, rs, fn);
+// }
 
 void TurboAssembler::Sw(Register rd, const MemOperand& rs) {
   auto fn = [this](Register value, const MemOperand& source) {
@@ -1517,7 +1517,7 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
       RecordEntry((uint64_t)j.immediate(), j.rmode());
       auipc(rd, 0);
       // Record a value into constant pool.
-      ld(rd, rd, 0);
+      lw(rd, rd, 0);
     } else {
       if ((count - reverse_count) > 1) {
         Li(rd, ~j.immediate());
@@ -2689,7 +2689,7 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   } else {
     Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
   }
-  ld(result, sp, 0);
+  lw(result, sp, 0);
 
   Add(sp, sp, Operand(kDoubleSize));
   pop(ra);
@@ -3903,7 +3903,7 @@ void TurboAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
     vmv_sx(v0, kScratchReg);
     vmerge_vx(dst, kScratchReg2, dst);
   } else if (ts == 32) {
-    Lwu(kScratchReg2, src);
+    Lw(kScratchReg2, src);
     VU.set(kScratchReg, E32, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
@@ -4085,7 +4085,7 @@ void MacroAssembler::JumpToOffHeapInstructionStream(Address entry) {
     RecordEntry(entry, RelocInfo::OFF_HEAP_TARGET);
     RecordRelocInfo(RelocInfo::OFF_HEAP_TARGET, entry);
     auipc(kOffHeapTrampolineRegister, 0);
-    ld(kOffHeapTrampolineRegister, kOffHeapTrampolineRegister, 0);
+    lw(kOffHeapTrampolineRegister, kOffHeapTrampolineRegister, 0);
   }
   Jump(kOffHeapTrampolineRegister);
 }
@@ -4995,7 +4995,7 @@ void TurboAssembler::StoreTaggedField(const Register& value,
 void TurboAssembler::DecompressTaggedSigned(const Register& destination,
                                             const MemOperand& field_operand) {
   ASM_CODE_COMMENT(this);
-  Lwu(destination, field_operand);
+  Lw(destination, field_operand);
   if (FLAG_debug_code) {
     // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
     /* RV32Gtodo: here need to re-impl
@@ -5008,7 +5008,7 @@ void TurboAssembler::DecompressTaggedSigned(const Register& destination,
 void TurboAssembler::DecompressTaggedPointer(const Register& destination,
                                              const MemOperand& field_operand) {
   ASM_CODE_COMMENT(this);
-  Lwu(destination, field_operand);
+  Lw(destination, field_operand);
   Add(destination, kPtrComprCageBaseRegister, destination);
 }
 
@@ -5022,7 +5022,7 @@ void TurboAssembler::DecompressTaggedPointer(const Register& destination,
 void TurboAssembler::DecompressAnyTagged(const Register& destination,
                                          const MemOperand& field_operand) {
   ASM_CODE_COMMENT(this);
-  Lwu(destination, field_operand);
+  Lw(destination, field_operand);
   Add(destination, kPtrComprCageBaseRegister, destination);
 }
 

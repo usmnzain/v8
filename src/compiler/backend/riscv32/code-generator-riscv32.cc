@@ -1598,9 +1598,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvUlw:
       __ Ulw(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kRiscvLwu:
-      __ Lwu(i.OutputRegister(), i.MemoryOperand());
-      break;
+    // case kRiscvLwu:
+    //   __ Lwu(i.OutputRegister(), i.MemoryOperand());
+    //   break;
     case kRiscvUlwu:
       __ Ulwu(i.OutputRegister(), i.MemoryOperand());
       break;
@@ -1961,7 +1961,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvS128Load32Zero: {
       Simd128Register dst = i.OutputSimd128Register();
       __ VU.set(kScratchReg, E32, m1);
-      __ Lwu(kScratchReg, i.MemoryOperand());
+      __ Lw(kScratchReg, i.MemoryOperand());
       __ vmv_sx(dst, kScratchReg);
       break;
     }

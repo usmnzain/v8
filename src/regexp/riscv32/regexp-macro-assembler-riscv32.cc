@@ -1057,10 +1057,10 @@ void RegExpMacroAssemblerRISCV::PushBacktrack(Label* label) {
     masm_->label_at_put(label, offset);
     __ bind(&after_constant);
     if (is_int16(cp_offset)) {
-      __ Lwu(a0, MemOperand(code_pointer(), cp_offset));
+      __ Lw(a0, MemOperand(code_pointer(), cp_offset));
     } else {
       __ Add(a0, code_pointer(), cp_offset);
-      __ Lwu(a0, MemOperand(a0, 0));
+      __ Lw(a0, MemOperand(a0, 0));
     }
   }
   Push(a0);
@@ -1339,7 +1339,7 @@ void RegExpMacroAssemblerRISCV::LoadCurrentCharacterUnchecked(int cp_offset,
   if (mode_ == LATIN1) {
     if (characters == 4) {
       __ Add(kScratchReg, end_of_input_address(), offset);
-      __ Lwu(current_character(), MemOperand(kScratchReg));
+      __ Lw(current_character(), MemOperand(kScratchReg));
     } else if (characters == 2) {
       __ Add(kScratchReg, end_of_input_address(), offset);
       __ Lhu(current_character(), MemOperand(kScratchReg));
@@ -1352,7 +1352,7 @@ void RegExpMacroAssemblerRISCV::LoadCurrentCharacterUnchecked(int cp_offset,
     DCHECK(mode_ == UC16);
     if (characters == 2) {
       __ Add(kScratchReg, end_of_input_address(), offset);
-      __ Lwu(current_character(), MemOperand(kScratchReg));
+      __ Lw(current_character(), MemOperand(kScratchReg));
     } else {
       DCHECK_EQ(1, characters);
       __ Add(kScratchReg, end_of_input_address(), offset);
