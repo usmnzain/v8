@@ -645,7 +645,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Sh(Register rd, const MemOperand& rs);
 
   void Lw(Register rd, const MemOperand& rs);
-  void Lwu(Register rd, const MemOperand& rs);
   void Sw(Register rd, const MemOperand& rs);
 
   void LoadFloat(FPURegister fd, const MemOperand& src);

@@ -1194,7 +1194,7 @@ void TurboAssembler::Uld(Register rd, const MemOperand& rs) {
 void MacroAssembler::LoadWordPair(Register rd, const MemOperand& rs) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  Lwu(rd, rs);
+  Lw(rd, rs);
   Lw(scratch, MemOperand(rs.rm(), rs.offset() + kSystemPointerSize / 2));
   slli(scratch, scratch, 32);
   Add(rd, rd, scratch);
@@ -1292,13 +1292,6 @@ void TurboAssembler::Lw(Register rd, const MemOperand& rs) {
     } else {
       this->lw(target, source.rm(), source.offset());
     }
-  };
-  AlignedLoadHelper(rd, rs, fn);
-}
-
-void TurboAssembler::Lwu(Register rd, const MemOperand& rs) {
-  auto fn = [this](Register target, const MemOperand& source) {
-    this->lwu(target, source.rm(), source.offset());
   };
   AlignedLoadHelper(rd, rs, fn);
 }
@@ -3741,7 +3734,7 @@ void TurboAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
     vmv_sx(v0, kScratchReg);
     vmerge_vx(dst, kScratchReg2, dst);
   } else if (ts == 32) {
-    Lwu(kScratchReg2, src);
+    Lw(kScratchReg2, src);
     VU.set(kScratchReg, E32, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
@@ -4786,6 +4779,80 @@ void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   DCHECK_EQ(JumpMode::kJump, jump_mode);
   LoadCodeObjectEntry(code_object, code_object);
   Jump(code_object);
+}
+
+void TurboAssembler::LoadTaggedPointerField(const Register& destination,
+                                            const MemOperand& field_operand) {
+  if (COMPRESS_POINTERS_BOOL) {
+    DecompressTaggedPointer(destination, field_operand);
+  } else {
+    Lw(destination, field_operand);
+  }
+}
+
+void TurboAssembler::LoadAnyTaggedField(const Register& destination,
+                                        const MemOperand& field_operand) {
+  if (COMPRESS_POINTERS_BOOL) {
+    DecompressAnyTagged(destination, field_operand);
+  } else {
+    Lw(destination, field_operand);
+  }
+}
+
+void TurboAssembler::LoadTaggedSignedField(const Register& destination,
+                                           const MemOperand& field_operand) {
+  if (COMPRESS_POINTERS_BOOL) {
+    DecompressTaggedSigned(destination, field_operand);
+  } else {
+    Lw(destination, field_operand);
+  }
+}
+
+void TurboAssembler::SmiUntagField(Register dst, const MemOperand& src) {
+  SmiUntag(dst, src);
+}
+
+void TurboAssembler::StoreTaggedField(const Register& value,
+                                      const MemOperand& dst_field_operand) {
+  if (COMPRESS_POINTERS_BOOL) {
+    Sw(value, dst_field_operand);
+  } else {
+    Sw(value, dst_field_operand);
+  }
+}
+
+void TurboAssembler::DecompressTaggedSigned(const Register& destination,
+                                            const MemOperand& field_operand) {
+  ASM_CODE_COMMENT(this);
+  Lw(destination, field_operand);
+  if (FLAG_debug_code) {
+    // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
+    /* RV32Gtodo: here need to re-impl
+    Add(destination, destination,
+          Operand(((kDebugZapValue << 16) | (pc_offset() & 0xffff)) << 32));
+    */
+  }
+}
+
+void TurboAssembler::DecompressTaggedPointer(const Register& destination,
+                                             const MemOperand& field_operand) {
+  ASM_CODE_COMMENT(this);
+  Lw(destination, field_operand);
+  Add(destination, kPtrComprCageBaseRegister, destination);
+}
+
+void TurboAssembler::DecompressTaggedPointer(const Register& destination,
+                                             const Register& source) {
+  ASM_CODE_COMMENT(this);
+  And(destination, source, Operand(0xFFFFFFFF));
+  Add(destination, kPtrComprCageBaseRegister, Operand(destination));
+}
+
+void TurboAssembler::DecompressAnyTagged(const Register& destination,
+                                         const MemOperand& field_operand) {
+  ASM_CODE_COMMENT(this);
+  Lw(destination, field_operand);
+  Add(destination, kPtrComprCageBaseRegister, destination);
 }
 
 void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
