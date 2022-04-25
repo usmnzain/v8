@@ -279,7 +279,7 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     Register temp = temps.Acquire();
     DCHECK(!AreAliased(object, value, temp));
     Add(temp, object, offset);
-    LoadTaggedPointerField(temp, MemOperand(temp));
+    Lw(temp, MemOperand(temp));
     Assert(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite, temp,
            Operand(value));
   }
@@ -2923,9 +2923,8 @@ void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
   LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
-  LoadTaggedPointerField(
-      destination, FieldMemOperand(destination, FixedArray::OffsetOfElementAt(
-                                                    constant_index)));
+  Lw(destination, FieldMemOperand(destination, FixedArray::OffsetOfElementAt(
+                                                   constant_index)));
 }
 
 void TurboAssembler::LoadRootRelative(Register destination, int32_t offset) {
@@ -3586,8 +3585,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   // allow recompilation to take effect without changing any of the
   // call sites.
   Register code = kJavaScriptCallCodeStartRegister;
-  LoadTaggedPointerField(code,
-                         FieldMemOperand(function, JSFunction::kCodeOffset));
+  Lw(code, FieldMemOperand(function, JSFunction::kCodeOffset));
   switch (type) {
     case InvokeType::kCall:
       CallCodeObject(code);
@@ -3614,11 +3612,9 @@ void MacroAssembler::InvokeFunctionWithNewTarget(
   {
     UseScratchRegisterScope temps(this);
     Register temp_reg = temps.Acquire();
-    LoadTaggedPointerField(
-        temp_reg,
-        FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
-    LoadTaggedPointerField(
-        cp, FieldMemOperand(function, JSFunction::kContextOffset));
+    Lw(temp_reg,
+       FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
+    Lw(cp, FieldMemOperand(function, JSFunction::kContextOffset));
     // The argument count is stored as uint16_t
     Lhu(expected_parameter_count,
         FieldMemOperand(temp_reg,
@@ -3639,7 +3635,7 @@ void MacroAssembler::InvokeFunction(Register function,
   DCHECK_EQ(function, a1);
 
   // Get the function and setup the context.
-  LoadTaggedPointerField(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
+  Lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
   InvokeFunctionCode(a1, no_reg, expected_parameter_count,
                      actual_parameter_count, type);
@@ -4044,17 +4040,15 @@ void TurboAssembler::Abort(AbortReason reason) {
 
 void TurboAssembler::LoadMap(Register destination, Register object) {
   ASM_CODE_COMMENT(this);
-  LoadTaggedPointerField(destination,
-                         FieldMemOperand(object, HeapObject::kMapOffset));
+  Lw(destination, FieldMemOperand(object, HeapObject::kMapOffset));
 }
 
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   ASM_CODE_COMMENT(this);
   LoadMap(dst, cp);
-  LoadTaggedPointerField(
-      dst, FieldMemOperand(
-               dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
-  LoadTaggedPointerField(dst, MemOperand(dst, Context::SlotOffset(index)));
+  Lw(dst,
+     FieldMemOperand(dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
+  Lw(dst, MemOperand(dst, Context::SlotOffset(index)));
 }
 
 void TurboAssembler::StubPrologue(StackFrame::Type type) {
@@ -4792,80 +4786,6 @@ void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   DCHECK_EQ(JumpMode::kJump, jump_mode);
   LoadCodeObjectEntry(code_object, code_object);
   Jump(code_object);
-}
-
-void TurboAssembler::LoadTaggedPointerField(const Register& destination,
-                                            const MemOperand& field_operand) {
-  if (COMPRESS_POINTERS_BOOL) {
-    DecompressTaggedPointer(destination, field_operand);
-  } else {
-    Lw(destination, field_operand);
-  }
-}
-
-void TurboAssembler::LoadAnyTaggedField(const Register& destination,
-                                        const MemOperand& field_operand) {
-  if (COMPRESS_POINTERS_BOOL) {
-    DecompressAnyTagged(destination, field_operand);
-  } else {
-    Lw(destination, field_operand);
-  }
-}
-
-void TurboAssembler::LoadTaggedSignedField(const Register& destination,
-                                           const MemOperand& field_operand) {
-  if (COMPRESS_POINTERS_BOOL) {
-    DecompressTaggedSigned(destination, field_operand);
-  } else {
-    Lw(destination, field_operand);
-  }
-}
-
-void TurboAssembler::SmiUntagField(Register dst, const MemOperand& src) {
-  SmiUntag(dst, src);
-}
-
-void TurboAssembler::StoreTaggedField(const Register& value,
-                                      const MemOperand& dst_field_operand) {
-  if (COMPRESS_POINTERS_BOOL) {
-    Sw(value, dst_field_operand);
-  } else {
-    Sw(value, dst_field_operand);
-  }
-}
-
-void TurboAssembler::DecompressTaggedSigned(const Register& destination,
-                                            const MemOperand& field_operand) {
-  ASM_CODE_COMMENT(this);
-  Lwu(destination, field_operand);
-  if (FLAG_debug_code) {
-    // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
-    /* RV32Gtodo: here need to re-impl
-    Add(destination, destination,
-          Operand(((kDebugZapValue << 16) | (pc_offset() & 0xffff)) << 32));
-    */
-  }
-}
-
-void TurboAssembler::DecompressTaggedPointer(const Register& destination,
-                                             const MemOperand& field_operand) {
-  ASM_CODE_COMMENT(this);
-  Lwu(destination, field_operand);
-  Add(destination, kPtrComprCageBaseRegister, destination);
-}
-
-void TurboAssembler::DecompressTaggedPointer(const Register& destination,
-                                             const Register& source) {
-  ASM_CODE_COMMENT(this);
-  And(destination, source, Operand(0xFFFFFFFF));
-  Add(destination, kPtrComprCageBaseRegister, Operand(destination));
-}
-
-void TurboAssembler::DecompressAnyTagged(const Register& destination,
-                                         const MemOperand& field_operand) {
-  ASM_CODE_COMMENT(this);
-  Lwu(destination, field_operand);
-  Add(destination, kPtrComprCageBaseRegister, destination);
 }
 
 void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
