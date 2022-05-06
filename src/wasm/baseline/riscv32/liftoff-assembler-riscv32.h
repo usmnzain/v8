@@ -542,6 +542,9 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kI64Load16S:
       TurboAssembler::Lh(dst.gp(), src_op);
       break;
+    case LoadType::kI64Load32U:
+      TurboAssembler::Lw(dst.gp(), src_op);
+      break;
     case LoadType::kI32Load:
     case LoadType::kI64Load32S:
       TurboAssembler::Lw(dst.gp(), src_op);
