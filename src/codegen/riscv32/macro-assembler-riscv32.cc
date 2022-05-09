@@ -1194,7 +1194,7 @@ void TurboAssembler::Uld(Register rd, const MemOperand& rs) {
 void MacroAssembler::LoadWordPair(Register rd, const MemOperand& rs) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  Lwu(rd, rs);
+  Lw(rd, rs);
   Lw(scratch, MemOperand(rs.rm(), rs.offset() + kSystemPointerSize / 2));
   slli(scratch, scratch, 32);
   Add(rd, rd, scratch);
@@ -1292,13 +1292,6 @@ void TurboAssembler::Lw(Register rd, const MemOperand& rs) {
     } else {
       this->lw(target, source.rm(), source.offset());
     }
-  };
-  AlignedLoadHelper(rd, rs, fn);
-}
-
-void TurboAssembler::Lwu(Register rd, const MemOperand& rs) {
-  auto fn = [this](Register target, const MemOperand& source) {
-    this->lwu(target, source.rm(), source.offset());
   };
   AlignedLoadHelper(rd, rs, fn);
 }
@@ -3741,7 +3734,7 @@ void TurboAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
     vmv_sx(v0, kScratchReg);
     vmerge_vx(dst, kScratchReg2, dst);
   } else if (ts == 32) {
-    Lwu(kScratchReg2, src);
+    Lw(kScratchReg2, src);
     VU.set(kScratchReg, E32, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);

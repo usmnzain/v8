@@ -1576,9 +1576,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvUlw:
       __ Ulw(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kRiscvLwu:
-      __ Lwu(i.OutputRegister(), i.MemoryOperand());
-      break;
     case kRiscvUlwu:
       __ Ulwu(i.OutputRegister(), i.MemoryOperand());
       break;
