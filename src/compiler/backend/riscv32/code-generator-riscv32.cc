@@ -1923,7 +1923,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvS128Load32Zero: {
       Simd128Register dst = i.OutputSimd128Register();
       __ VU.set(kScratchReg, E32, m1);
-      __ Lwu(kScratchReg, i.MemoryOperand());
+      __ Lw(kScratchReg, i.MemoryOperand());
       __ vmv_sx(dst, kScratchReg);
       break;
     }
