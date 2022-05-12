@@ -450,7 +450,7 @@ void TurboAssembler::Mulh(Register rd, Register rs, const Operand& rt) {
 }
 
 void TurboAssembler::Mulhu(Register rd, Register rs, const Operand& rt,
-                             Register rsz, Register rtz) {
+                           Register rsz, Register rtz) {
   if (rt.is_reg()) {
     mulhu(rd, rs, rt.rm());
   } else {

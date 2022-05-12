@@ -993,12 +993,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                        i.InputOperand(1), kScratchReg);
       break;
     case kRiscvMulHigh32:
-      __ Mulh(i.OutputRegister(), i.InputOrZeroRegister(0),
-                i.InputOperand(1));
+      __ Mulh(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
       break;
     case kRiscvMulHighU32:
-      __ Mulhu(i.OutputRegister(), i.InputOrZeroRegister(0),
-                 i.InputOperand(1), kScratchReg, kScratchReg2);
+      __ Mulhu(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1),
+               kScratchReg, kScratchReg2);
       break;
     case kRiscvDiv32: {
       __ Div(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
@@ -1007,8 +1006,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kRiscvDivU32: {
-      __ Divu(i.OutputRegister(), i.InputOrZeroRegister(0),
-                i.InputOperand(1));
+      __ Divu(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
       // Set ouput to zero if divisor == 0
       __ LoadZeroIfConditionZero(i.OutputRegister(), i.InputRegister(1));
       break;
@@ -1017,8 +1015,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Mod(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
       break;
     case kRiscvModU32:
-      __ Modu(i.OutputRegister(), i.InputOrZeroRegister(0),
-                i.InputOperand(1));
+      __ Modu(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));
       break;
     case kRiscvAnd:
       __ And(i.OutputRegister(), i.InputOrZeroRegister(0), i.InputOperand(1));

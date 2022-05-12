@@ -1238,7 +1238,7 @@ I32_SHIFTOP_I(shr, srli)
 
 void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
-  TurboAssembler::Mul(dst.gp(), lhs.gp(), rhs.gp()); 
+  TurboAssembler::Mul(dst.gp(), lhs.gp(), rhs.gp());
 }
 
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,

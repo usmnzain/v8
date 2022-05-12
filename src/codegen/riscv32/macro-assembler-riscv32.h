@@ -723,7 +723,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // MIPS-style 32-bit unsigned mulh
   void Mulhu(Register dst, Register left, const Operand& right,
-               Register left_zero, Register right_zero);
+             Register left_zero, Register right_zero);
 
   // Number of instructions needed for calculation of switch table entry address
   static const int kSwitchTablePrologueSize = 6;
