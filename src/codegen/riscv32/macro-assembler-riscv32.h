@@ -417,23 +417,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 #define DEFINE_INSTRUCTION3(instr) void instr(Register rd, int32_t imm);
 
   DEFINE_INSTRUCTION(Add)
-  DEFINE_INSTRUCTION(Div32)
-  DEFINE_INSTRUCTION(Divu32)
-  DEFINE_INSTRUCTION(Divu64)
-  DEFINE_INSTRUCTION(Mod32)
-  DEFINE_INSTRUCTION(Modu32)
-  DEFINE_INSTRUCTION(Div64)
+  DEFINE_INSTRUCTION(Div)
+  DEFINE_INSTRUCTION(Divu)
+  DEFINE_INSTRUCTION(Mod)
+  DEFINE_INSTRUCTION(Modu)
   DEFINE_INSTRUCTION(Sub)
-  DEFINE_INSTRUCTION(Mod64)
-  DEFINE_INSTRUCTION(Modu64)
-  DEFINE_INSTRUCTION(Mul32)
-  DEFINE_INSTRUCTION(Mulh32)
-  DEFINE_INSTRUCTION(Mul64)
-  DEFINE_INSTRUCTION(Mulh64)
-  DEFINE_INSTRUCTION2(Div32)
-  DEFINE_INSTRUCTION2(Div64)
-  DEFINE_INSTRUCTION2(Divu32)
-  DEFINE_INSTRUCTION2(Divu64)
+  DEFINE_INSTRUCTION(Mul)
+  DEFINE_INSTRUCTION(Mulh)
+  DEFINE_INSTRUCTION2(Div)
+  DEFINE_INSTRUCTION2(Divu)
 
   DEFINE_INSTRUCTION(And)
   DEFINE_INSTRUCTION(Or)
@@ -730,8 +722,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                      Register overflow);
 
   // MIPS-style 32-bit unsigned mulh
-  void Mulhu32(Register dst, Register left, const Operand& right,
-               Register left_zero, Register right_zero);
+  void Mulhu(Register dst, Register left, const Operand& right,
+             Register left_zero, Register right_zero);
 
   // Number of instructions needed for calculation of switch table entry address
   static const int kSwitchTablePrologueSize = 6;
