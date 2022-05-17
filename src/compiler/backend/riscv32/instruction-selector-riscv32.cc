@@ -1674,19 +1674,19 @@ void InstructionSelector::VisitUint32LessThanOrEqual(Node* node) {
 void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitBinop(this, node, kRiscvAdd, &cont);
+    return VisitBinop(this, node, kRiscvAddOvf, &cont);
   }
   FlagsContinuation cont;
-  VisitBinop(this, node, kRiscvAdd, &cont);
+  VisitBinop(this, node, kRiscvAddOvf, &cont);
 }
 
 void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitBinop(this, node, kRiscvSub, &cont);
+    return VisitBinop(this, node, kRiscvSubOvf, &cont);
   }
   FlagsContinuation cont;
-  VisitBinop(this, node, kRiscvSub, &cont);
+  VisitBinop(this, node, kRiscvSubOvf, &cont);
 }
 
 void InstructionSelector::VisitInt32MulWithOverflow(Node* node) {
@@ -1774,6 +1774,9 @@ void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
     case MachineRepresentation::kWord16:
       opcode = load_rep.IsSigned() ? kAtomicLoadInt16 : kAtomicLoadUint16;
       break;
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTagged:
     case MachineRepresentation::kWord32:
       opcode = kAtomicLoadWord32;
       break;
@@ -1794,6 +1797,9 @@ void InstructionSelector::VisitWord32AtomicStore(Node* node) {
     case MachineRepresentation::kWord16:
       opcode = kAtomicStoreWord16;
       break;
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTagged:
     case MachineRepresentation::kWord32:
       opcode = kAtomicStoreWord32;
       break;
