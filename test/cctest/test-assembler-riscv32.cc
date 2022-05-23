@@ -347,9 +347,9 @@ UTEST_I_FORM_WITH_OP(sltiu, uint32_t, LARGE_UINT_UNDER_32_BIT, 0x4FB, <)
 UTEST_I_FORM_WITH_OP(xori, int32_t, LARGE_INT_UNDER_32_BIT, MIN_VAL_IMM12, ^)
 UTEST_I_FORM_WITH_OP(ori, int32_t, LARGE_INT_UNDER_32_BIT, MIN_VAL_IMM12, |)
 UTEST_I_FORM_WITH_OP(andi, int32_t, LARGE_INT_UNDER_32_BIT, MIN_VAL_IMM12, &)
-UTEST_I_FORM_WITH_OP(slli, int32_t, 0x1234'5678ULL, 17, <<)
-UTEST_I_FORM_WITH_OP(srli, int32_t, 0x82340000ULL, 17, >>)
-UTEST_I_FORM_WITH_OP(srai, int32_t, -0x12340000LL, 17, >>)
+UTEST_I_FORM_WITH_OP(slli, uint32_t, 0x12345678ULL, 17, <<)
+UTEST_I_FORM_WITH_OP(srli, uint32_t, 0x82340000ULL, 17, >>)
+UTEST_I_FORM_WITH_OP(srai, uint32_t, -0x12340000LL, 17, >>)
 
 // -- arithmetic --
 UTEST_R2_FORM_WITH_OP(add, int32_t, LARGE_INT_UNDER_32_BIT, MIN_VAL_IMM12, +)
@@ -359,9 +359,9 @@ UTEST_R2_FORM_WITH_OP(sltu, uint32_t, 0x4FB, LARGE_UINT_UNDER_32_BIT, <)
 UTEST_R2_FORM_WITH_OP(xor_, int32_t, LARGE_INT_UNDER_32_BIT, MIN_VAL_IMM12, ^)
 UTEST_R2_FORM_WITH_OP(or_, int32_t, LARGE_INT_UNDER_32_BIT, MIN_VAL_IMM12, |)
 UTEST_R2_FORM_WITH_OP(and_, int32_t, LARGE_INT_UNDER_32_BIT, MIN_VAL_IMM12, &)
-UTEST_R2_FORM_WITH_OP(sll, int32_t, 0x12345678UL, 17, <<)
-UTEST_R2_FORM_WITH_OP(srl, int32_t, 0x82340000UL, 17, >>)
-UTEST_R2_FORM_WITH_OP(sra, int32_t, -0x12340000LL, 17, >>)
+UTEST_R2_FORM_WITH_OP(sll, uint32_t, 0x12345678UL, 17, <<)
+UTEST_R2_FORM_WITH_OP(srl, uint32_t, 0x82340000UL, 17, >>)
+UTEST_R2_FORM_WITH_OP(sra, uint32_t, -0x12340000LL, 17, >>)
 
 // -- Memory fences --
 // void fence(uint8_t pred, uint8_t succ);
@@ -1058,13 +1058,6 @@ TEST(RISCV9) {
 TEST(NAN_BOX) {
   // Test float NaN-boxing.
   CcTest::InitializeVM();
-
-  // Test NaN boxing in FMV.X.D
-  {
-    auto fn = [](MacroAssembler& assm) { __ fmv_x_d(a0, fa0); };
-    auto res = GenAndRunTest<uint32_t>(1234.56f, fn);
-    CHECK_EQ(0xFFFFFFFF00000000 | bit_cast<uint32_t>(1234.56f), res);
-  }
   // Test NaN boxing in FMV.X.W
   {
     auto fn = [](MacroAssembler& assm) { __ fmv_x_w(a0, fa0); };
@@ -1577,46 +1570,6 @@ TEST(OUT_OF_RANGE_CVT) {
     for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
       auto input = *i;
       auto fn = [](MacroAssembler& assm) { __ fcvt_wu_s(a0, fa0); };
-      auto res = GenAndRunTest<uint32_t>(input.first, fn);
-      CHECK_EQ(input.second, res);
-    }
-  }
-
-  // {  // test fvt_l_d
-  //   auto i_vec = out_of_range_test_values<double, int64_t>();
-  //   for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
-  //     auto input = *i;
-  //     auto fn = [](MacroAssembler& assm) { __ fcvt_l_d(a0, fa0); };
-  //     auto res = GenAndRunTest<int32_t>(input.first, fn);
-  //     CHECK_EQ(input.second, res);
-  //   }
-  // }
-
-  {  // test fvt_l_s
-    auto i_vec = out_of_range_test_values<float, int32_t>();
-    for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
-      auto input = *i;
-      auto fn = [](MacroAssembler& assm) { __ fcvt_l_s(a0, fa0); };
-      auto res = GenAndRunTest<int32_t>(input.first, fn);
-      CHECK_EQ(input.second, res);
-    }
-  }
-
-  // {  // test fvt_lu_d
-  //   auto i_vec = out_of_range_test_values<double, uint64_t>();
-  //   for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
-  //     auto input = *i;
-  //     auto fn = [](MacroAssembler& assm) { __ fcvt_lu_d(a0, fa0); };
-  //     auto res = GenAndRunTest<uint32_t>(input.first, fn);
-  //     CHECK_EQ(input.second, res);
-  //   }
-  // }
-
-  {  // test fvt_lu_s
-    auto i_vec = out_of_range_test_values<float, uint32_t>();
-    for (auto i = i_vec.begin(); i != i_vec.end(); ++i) {
-      auto input = *i;
-      auto fn = [](MacroAssembler& assm) { __ fcvt_lu_s(a0, fa0); };
       auto res = GenAndRunTest<uint32_t>(input.first, fn);
       CHECK_EQ(input.second, res);
     }
